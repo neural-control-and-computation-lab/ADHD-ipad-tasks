@@ -9,17 +9,17 @@ Everything is in one file, `index.html`. It needs no internet once it has loaded
 ## Design (follows Verbruggen et al., 2019 and STOP-IT where it applies)
 
 - **Stimuli:** X = go, A = no-go, 25% no-go. This is the proportion the consensus guide recommends.
-- **Practice:** 1 block of 32 trials (24 X, 8 A). Feedback after errors ("Too slow", "Don't move for A", "Too early"), the same as STOP-IT's practice feedback (750 ms).
+- **Practice:** 1 block of 32 trials (24 X, 8 A). After an error, a message ("Too slow", "Don't move for A" or "Too early") shows for 750 ms, as in STOP-IT.
 - **Test:** 4 blocks of 72 trials = 288 trials in total, 72 of them no-go. The consensus guide's Inquisit version uses 3 blocks of 72; we added a fourth for more trials. Order is fully randomised within each block.
 - **Each trial:**
-  - a fixation cross for a random 500–2000 ms (mean about 920 ms)
+  - a fixation cross for a random 500–2000 ms (uniform, so 1250 ms on average)
   - the letter stays up until a tap, or for 1500 ms
   - the next fixation cross appears 2000 ms after the letter, whatever the response
-- **Why the fixation time is random:** we don't track whether the hand is on the start mark, so the letter onset must not be predictable, or people will start moving early. The fixation time is 500 ms plus an exponential delay (mean 500 ms), truncated at 2000 ms. An exponential delay keeps the hazard rate roughly flat: at any moment the letter is about equally likely to appear next, so waiting longer gives little clue. A uniform range can be chosen in Advanced settings instead.
+- **Why the fixation time is random:** we don't track whether the hand is on the start mark, so the letter onset must not be predictable, or people will start moving early. Each trial's fixation time is drawn at random from 500–2000 ms, all values equally likely. Advanced settings also offer an exponential distribution, which makes late onsets harder to anticipate; the data file records which one was used.
 - **Why the timing is longer than STOP-IT:** STOP-IT uses a 1250 ms response window for key presses. We added 250 ms for the reach. The 2000 ms from one letter to the next fixation, plus at least 500 ms of fixation, leaves time to get back to the start mark.
-- **Between blocks:** 15 s break showing average tap time, missed X's ("try to keep this at 0") and A's tapped. The consensus guide recommends this to stop people slowing down.
+- **Between blocks:** 15 s break showing average tap time, missed X's ("aim for 0") and A's tapped. The consensus guide recommends this to stop people slowing down.
 - **Instructions:** one short screen. Finger on the start mark; X = tap the circle as fast as you can; A = don't move; go back to the mark after each tap, and don't wait to see if an A is coming. The last point is the guide's key instruction, adapted for go/no-go.
-- **Session length:** about 2 min of practice plus 15 min of test, not counting instructions. Dropping to 3 blocks (`blocks=3`) brings the test down to about 11 min.
+- **Session length:** about 2 min of practice plus 17 min of test, not counting instructions. Dropping to 3 blocks (`blocks=3`) brings the test down to about 12.5 min.
 - **Order of trials and fixation times:** set by the participant ID, so the same ID always gives the same sequence and it can be rebuilt without the data file.
 
 ## Video synchronisation
@@ -32,19 +32,19 @@ Everything is in one file, `index.html`. It needs no internet once it has loaded
 ## Setting up the iPad
 
 - **Open the task:** go to https://neural-control-and-computation-lab.github.io/gonogo-reach/ in Safari, tap Share, then Add to Home Screen. Open it from the home-screen icon so it runs full screen with no browser bars.
-- **Rotation:** turn on rotation lock (Control Centre). A flat iPad will otherwise flip orientation on its own. Landscape is the default layout.
+- **Rotation:** hold the iPad in landscape and turn on rotation lock (Control Centre). A flat iPad will otherwise flip orientation on its own. The layout also works in portrait, but use the same orientation for everyone.
 - **Screen:** set Auto-Lock to Never and turn on Do Not Disturb. Set the brightness to a fixed level (turn off auto-brightness) so the patches look the same in every session.
 - **Guided Access** (Settings → Accessibility): turn it on and start it once the task is open. This stops home-gestures and notifications from interrupting the task.
 - **Positioning:** put the iPad on the pedestal with the bottom of the screen facing the participant.
 - **Start mark:** tape it on the table and use the same spot for everyone. Write down the distance.
-- **Size check:** press "Check layout & size" on the setup screen. The white bar should measure 10 cm. If it doesn't, change "px per cm" in Advanced settings (52 is right for most iPads, 64 for an iPad mini).
+- **Size check:** press "Check layout & size" on the setup screen. The white bar should measure 10 cm. If it doesn't, change "Screen scale (px per cm)" in Advanced settings (52 is right for most iPads, 64 for an iPad mini).
 
 ## Running a session
 
 - **Start:** enter the participant ID and the hand used, then press Start session.
 - **Instructions:** read the single instruction screen out loud, then press Start practice.
 - **After practice:** choose Repeat practice or Start part 1. Repeat it if the participant clearly didn't follow the instructions.
-- **Each block:** a block starts straight from the button, with a 3-second countdown so the participant can put their finger on the start mark. After each break, the Start button unlocks after 15 s.
+- **Each part:** a part starts as soon as its Start button is pressed. A 3-second countdown gives the participant time to put their finger on the start mark. On break screens, the button unlocks after 15 s.
 - **Pausing:** press and hold the grey code strip at the top centre of the screen for 1 s. From the pause screen you can resume (the interrupted trial is re-run), restart the block, or end and save. The task also pauses on its own if the screen locks or someone switches apps.
 - **Saving:** at the end, press Save CSV… and pick AirDrop, Save to Files, or Dropbox. Download CSV is a fallback.
 - **Backup copy:** sessions also stay on the iPad (listed on the setup screen) until you delete them.
@@ -57,7 +57,8 @@ Everything is in one file, `index.html`. It needs no internet once it has loaded
   - `block` (0 = practice), `trial_in_block`, `code` (the trial number in the binary strip)
   - `type` (go/nogo), `outcome` (hit, omission, commission, correct_withhold, aborted)
 - **Timing columns:**
-  - `fix_ms`: when the fixation cross appeared; `foreperiod_ms`: the planned fixation time for that trial
+  - `fix_ms`: when the fixation cross appeared
+  - `foreperiod_ms`: how long the fixation cross was planned to stay up on that trial
   - `onset_ms`: when the letter was drawn
   - `onset_epoch_ms`: the same moment as wall-clock time, for rough matching to camera timestamps
   - `rt_ms`: from letter onset to touching the screen. This includes movement time; reach onset has to come from ATHENA.
@@ -68,6 +69,7 @@ Everything is in one file, `index.html`. It needs no internet once it has loaded
   - `late_rt_ms`: taps after the response window closed
   - `extra_n`: any other touches
   - `aborted`: 1 for trials interrupted by a pause (these are re-run)
+- **Other columns:** `block_label` (P1 = practice, B1–B4 = test parts), `block_run` (goes up if a block is restarted), `fix_sched_ms` (planned fixation time), `frame_ms` (screen refresh interval when the letter appeared).
 - **Timing accuracy:** the iPad's times are accurate to about one screen refresh (about 17 ms at 60 Hz). The corner patches in the video are the reference.
 
 ## Settings

@@ -15,8 +15,8 @@
   Structure follows the consensus stop-signal guide (Verbruggen et al., 2019, eLife 8:e46323)
   and its STOP-IT / Inquisit implementations, adapted to go/no-go with a reach response:
     - 25% no-go, 1 practice block of 32 trials, 4 test blocks of 72 trials (288 trials, 72 no-go)
-    - randomised fixation period (truncated exponential, 500-2000 ms) so the onset can't be anticipated,
-      stimulus until tap or response window, next fixation a fixed time after each onset
+    - fixation period drawn at random (uniform, 500-2000 ms) on every trial so the onset can't be anticipated;
+      letter stays up until a tap or the end of the response window; next fixation a fixed time after each onset
     - trial-by-trial feedback in practice only, mean RT / omissions / errors between blocks
   Video synchronisation: white patches in the two far corners turn on at every stimulus onset;
   a binary strip at the far edge identifies each trial in the video (printed number optional).
@@ -123,7 +123,7 @@ table.stats th{color:var(--muted);font-weight:600}
 <div id="setup" class="screen ui">
  <div class="wrap">
   <h1>Go/No-Go reach task</h1>
-  <p class="sub">NCC Lab · ATHENA ADHD study · iPad lying flat, participant at the bottom edge of the screen. Lock rotation before starting.</p>
+  <p class="sub">NCC Lab · ATHENA ADHD study. Place the iPad flat with the bottom of the screen toward the participant, and lock rotation before starting.</p>
 
   <div class="card">
    <h2>Participant</h2>
@@ -187,7 +187,7 @@ table.stats th{color:var(--muted);font-weight:600}
   </div>
   <div class="el hidden" id="fb"></div>
   <div class="el hidden" id="ruler"></div>
-  <div class="el hidden" id="rulerLbl">This white bar should measure 10 cm. If not, change "px per cm" in Advanced settings.</div>
+  <div class="el hidden" id="rulerLbl">This white bar should measure 10 cm. If not, change "Screen scale" in Advanced settings.</div>
   <div class="el hidden" id="previewLbl">Layout check · tap anywhere to close</div>
 </div>
 
@@ -213,7 +213,7 @@ table.stats th{color:var(--muted);font-weight:600}
    (the start position isn't tracked, so the onset must not be predictable).
    Any parameter can be overridden with a URL query, e.g. ?postMs=1750&blocks=3
    ===================================================================== */
-const VERSION = '1.1.0';
+const VERSION = '1.2.0';
 const DEFAULTS = {
   goLetter: 'X',          // go stimulus
   nogoLetter: 'A',        // no-go stimulus
@@ -221,10 +221,10 @@ const DEFAULTS = {
   practiceTrials: 32,     // STOP-IT / Inquisit: 1 practice block of 32
   blocks: 4,              // Inquisit consensus version uses 3; one more for extra trials
   trialsPerBlock: 72,     // 4 x 72 = 288 trials, 72 no-go
-  fixMinMs: 500,          // fixation period (foreperiod) is randomised on every trial:
-  fixMaxMs: 2000,         //   between fixMinMs and fixMaxMs,
-  fixMeanMs: 500,         //   exponential above the minimum with this mean (flat hazard, so no anticipation),
-  fixDist: 'exponential', //   'exponential' or 'uniform'
+  fixMinMs: 500,          // fixation period (foreperiod), drawn at random on every trial
+  fixMaxMs: 2000,         //   between fixMinMs and fixMaxMs
+  fixDist: 'uniform',     //   'uniform', or 'exponential' (flatter hazard: onset harder to anticipate late in the range)
+  fixMeanMs: 500,         //   exponential only: mean of the delay added to fixMinMs (truncated at fixMaxMs)
   maxRtMs: 1500,          // response window after onset (STOP-IT 1250 for key press; +250 for the reach)
   postMs: 2000,           // letter onset to the next fixation (response window + time to return to the start mark)
   syncFlashMs: 150,       // corner patches stay white this long after each onset
@@ -249,18 +249,19 @@ const PARAM_META = [
   ['pNogo','No-go proportion','num',0.05,0.5,0.01],
   ['practiceTrials','Practice trials','int',0,200,1],
   ['blocks','Test blocks','int',1,10,1], ['trialsPerBlock','Trials per block','int',4,400,1],
-  ['fixMinMs','Fixation min (ms)','int',0,5000,50], ['fixMaxMs','Fixation max (ms)','int',0,8000,50],
-  ['fixMeanMs','Fixation exp. mean above min (ms)','int',1,5000,50], ['fixDist','Fixation distribution (exponential / uniform)','text'],
+  ['fixMinMs','Fixation, shortest (ms)','int',0,5000,50], ['fixMaxMs','Fixation, longest (ms)','int',0,8000,50],
+  ['fixDist','Fixation distribution','select',['uniform','exponential']],
+  ['fixMeanMs','Exponential mean (ms, exponential only)','int',1,5000,50],
   ['maxRtMs','Response window (ms)','int',300,5000,50],
-  ['postMs','Letter onset to next fixation (ms)','int',500,8000,50], ['syncFlashMs','Sync flash (ms)','int',50,1000,10],
-  ['practiceFeedback','Practice feedback','bool'], ['feedbackMs','Practice feedback (ms)','int',200,3000,50],
-  ['blockFeedback','Between-block feedback','bool'], ['breakSec','Break (s)','int',0,300,1],
-  ['countdownSec','Countdown (s)','int',0,10,1], ['startFlashes','Block-start flashes','int',0,10,1],
-  ['leadMs','Lead-in after flashes (ms)','int',0,5000,50],
-  ['pxPerCm','px per cm','num',20,120,0.5], ['targetCm','Circle diameter (cm)','num',2,15,0.5],
-  ['letterCm','Letter height (cm)','num',1,10,0.5], ['patchCm','Sync patch (cm)','num',1,6,0.5],
-  ['showCode','Binary trial code','bool'], ['codeBits','Code bits','int',4,12,1],
-  ['showTrialNum','Show trial number','bool'], ['seed','Seed (blank = ID)','text']
+  ['postMs','Letter onset to next fixation (ms)','int',500,8000,50], ['syncFlashMs','Corner patch on-time (ms)','int',50,1000,10],
+  ['practiceFeedback','Feedback in practice','bool'], ['feedbackMs','Practice feedback duration (ms)','int',200,3000,50],
+  ['blockFeedback','Feedback between blocks','bool'], ['breakSec','Break between blocks (s)','int',0,300,1],
+  ['countdownSec','Countdown before each block (s)','int',0,10,1], ['startFlashes','Block-start flashes','int',0,10,1],
+  ['leadMs','Pause after block-start flashes (ms)','int',0,5000,50],
+  ['pxPerCm','Screen scale (px per cm)','num',20,120,0.5], ['targetCm','Circle diameter (cm)','num',2,15,0.5],
+  ['letterCm','Letter height (cm)','num',1,10,0.5], ['patchCm','Corner patch size (cm)','num',1,6,0.5],
+  ['showCode','Binary trial code','bool'], ['codeBits','Binary code bits','int',4,12,1],
+  ['showTrialNum','Printed trial number','bool'], ['seed','Trial-order seed (blank = participant ID)','text']
 ];
 
 /* participant-facing text (edit freely) */
@@ -364,8 +365,9 @@ function renderAdvanced(){
   for (const [k,label,type,min,max,step] of PARAM_META){
     const row = document.createElement('label'); row.className = 'row';
     const sp = document.createElement('span'); sp.textContent = label; row.appendChild(sp);
-    const inp = document.createElement('input'); inp.dataset.key = k;
-    if (type === 'bool'){ inp.type = 'checkbox'; inp.checked = !!base[k]; }
+    const inp = document.createElement(type === 'select' ? 'select' : 'input'); inp.dataset.key = k;
+    if (type === 'select'){ for (const o of min){ const op = document.createElement('option'); op.value = o; op.textContent = o; inp.appendChild(op); } inp.value = base[k]; }
+    else if (type === 'bool'){ inp.type = 'checkbox'; inp.checked = !!base[k]; }
     else if (type === 'text'){ inp.type = 'text'; inp.value = base[k]; inp.autocapitalize='off'; inp.spellcheck=false; }
     else { inp.type = 'number'; inp.inputMode = 'decimal'; inp.min = min; inp.max = max; inp.step = step; inp.value = base[k]; }
     inp.addEventListener('input', updateSummary); inp.addEventListener('change', updateSummary);
@@ -553,7 +555,7 @@ function startTestBlock(k){
   runBlock({kind:'test', blockNum:k, label:'B'+k, trials: S.testLists[k-1].slice(), onDone: st => blockDone(k, st)});
 }
 function practiceDone(st){
-  const body = `<p>Practice done. No more messages from now on.</p>` + feedbackHtml(st);
+  const body = `<p>Practice done. From now on there are no messages after each letter.</p>` + feedbackHtml(st);
   message({title:'Practice', body,
     note:'Experimenter: repeat the practice if the instructions were not followed.',
     buttons:[{label:'Repeat practice', onClick: startPractice},
@@ -755,7 +757,7 @@ function computeStats(rows, label){
     meanRt: m, sdRt: s, cv: s/m, medRt: median(rts),
     premature: rows.filter(r => Number(r.premature_n) > 0).length};
 }
-function statsHeader(){ return `<tr><th>Block</th><th>Trials</th><th>Mean RT</th><th>SD</th><th>CV</th><th>Missed go</th><th>No-go errors</th><th>Early</th></tr>`; }
+function statsHeader(){ return `<tr><th>Block</th><th>Trials</th><th>Mean RT (ms)</th><th>SD (ms)</th><th>CV</th><th>Missed go</th><th>No-go errors</th><th>Early touches</th></tr>`; }
 function statsRow(st){
   const f = x => Number.isFinite(x) ? Math.round(x) : '–';
   return `<tr><td>${esc(st.label)}</td><td>${st.n}</td><td>${f(st.meanRt)}</td><td>${f(st.sdRt)}</td><td>${Number.isFinite(st.cv) ? st.cv.toFixed(2) : '–'}</td><td>${st.omissions}/${st.goN}</td><td>${st.commissions}/${st.nogoN}</td><td>${st.premature}</td></tr>`;
@@ -772,7 +774,7 @@ function pause(reason){
     b.cur = null;
   }
   clearStage();
-  $('pauseInfo').innerHTML = `${esc(reason || 'Paused by experimenter')}.<br>Block ${esc(b.label)}, trial ${Math.min(b.idx+1, b.trials.length)} of ${b.trials.length}.`;
+  $('pauseInfo').innerHTML = `${esc(reason || 'Paused by experimenter')}.<br>${b.kind === 'practice' ? 'Practice' : 'Part ' + b.blockNum + ' of ' + P.blocks}, trial ${Math.min(b.idx+1, b.trials.length)} of ${b.trials.length}.`;
   $('pause').classList.remove('hidden');
 }
 function resumeBlock(restart){
