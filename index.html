@@ -14,11 +14,12 @@
   Go/No-Go reach-and-tap task for iPad (Safari), NCC Lab, York University.
   Structure follows the consensus stop-signal guide (Verbruggen et al., 2019, eLife 8:e46323)
   and its STOP-IT / Inquisit implementations, adapted to go/no-go with a reach response:
-    - 25% no-go, 1 practice block of 32 trials, 3 test blocks of 72 trials (216 trials, 54 no-go)
-    - 250 ms fixation, stimulus until tap or response window, fixed trial duration (SOA)
+    - 25% no-go, 1 practice block of 32 trials, 4 test blocks of 72 trials (288 trials, 72 no-go)
+    - randomised fixation period (truncated exponential, 500-2000 ms) so the onset can't be anticipated,
+      stimulus until tap or response window, next fixation a fixed time after each onset
     - trial-by-trial feedback in practice only, mean RT / omissions / errors between blocks
   Video synchronisation: white patches in the two far corners turn on at every stimulus onset;
-  a binary strip and trial number at the far edge identify each trial in the video.
+  a binary strip at the far edge identifies each trial in the video (printed number optional).
   The task also logs touches as a backup (CSV export at the end).
   Single self-contained file; no network access needed once loaded.
 -->
@@ -159,7 +160,7 @@ table.stats th{color:var(--muted);font-weight:600}
   <div class="btns" style="margin-top:6px">
     <button class="btn primary" id="startBtn" style="font-size:20px;padding:16px 40px">Start session</button>
   </div>
-  <p class="sub" style="margin-top:22px">During the task: press and hold the trial number at the top of the screen for 1 s to pause (or press Esc on a keyboard). On a laptop, the space bar acts as a tap on the circle.</p>
+  <p class="sub" style="margin-top:22px">During the task: press and hold the grey code strip at the top centre of the screen for 1 s to pause (or press Esc on a keyboard). On a laptop, the space bar acts as a tap on the circle.</p>
  </div>
 </div>
 
@@ -208,21 +209,25 @@ table.stats th{color:var(--muted);font-weight:600}
 /* =====================================================================
    PARAMETERS
    Defaults follow Verbruggen et al. (2019) / STOP-IT where they apply,
-   with the response window and trial duration lengthened for a reach.
-   Any parameter can be overridden with a URL query, e.g. ?soaMs=2250&blocks=4
+   with the response window lengthened for a reach and a randomised fixation period
+   (the start position isn't tracked, so the onset must not be predictable).
+   Any parameter can be overridden with a URL query, e.g. ?postMs=1750&blocks=3
    ===================================================================== */
-const VERSION = '1.0.0';
+const VERSION = '1.1.0';
 const DEFAULTS = {
   goLetter: 'X',          // go stimulus
   nogoLetter: 'A',        // no-go stimulus
   pNogo: 0.25,            // proportion of no-go trials (consensus guide: 25%)
   practiceTrials: 32,     // STOP-IT / Inquisit: 1 practice block of 32
-  blocks: 3,              // Inquisit consensus version: 3 test blocks
-  trialsPerBlock: 72,     // 3 x 72 = 216 trials, 54 no-go
-  fixMs: 250,             // STOP-IT fixation 250 ms
+  blocks: 4,              // Inquisit consensus version uses 3; one more for extra trials
+  trialsPerBlock: 72,     // 4 x 72 = 288 trials, 72 no-go
+  fixMinMs: 500,          // fixation period (foreperiod) is randomised on every trial:
+  fixMaxMs: 2000,         //   between fixMinMs and fixMaxMs,
+  fixMeanMs: 500,         //   exponential above the minimum with this mean (flat hazard, so no anticipation),
+  fixDist: 'exponential', //   'exponential' or 'uniform'
   maxRtMs: 1500,          // response window after onset (STOP-IT 1250 for key press; +250 for the reach)
-  soaMs: 2500,            // fixed fixation-to-fixation time (Inquisit 2000 ms; +500 to return to the start mark)
-  syncFlashMs: 200,       // corner patches stay white this long after each onset
+  postMs: 2000,           // letter onset to the next fixation (response window + time to return to the start mark)
+  syncFlashMs: 150,       // corner patches stay white this long after each onset
   practiceFeedback: true, // trial-by-trial messages in practice only
   feedbackMs: 750,        // STOP-IT practice feedback duration
   blockFeedback: true,    // mean RT, omissions and errors between blocks
@@ -233,10 +238,10 @@ const DEFAULTS = {
   pxPerCm: 52,            // CSS px per cm (most iPads: 52; iPad mini: 64)
   targetCm: 7,            // circle diameter
   letterCm: 4,            // letter height
-  patchCm: 2.5,           // sync patch size
+  patchCm: 3,             // sync patch size
   showCode: true,         // binary trial code at the far edge
   codeBits: 9,            // trial numbers 1..511
-  showTrialNum: true,     // printed trial number at the far edge
+  showTrialNum: false,    // printed trial number at the far edge
   seed: ''                // trial-order seed; blank = participant ID
 };
 const PARAM_META = [
@@ -244,8 +249,10 @@ const PARAM_META = [
   ['pNogo','No-go proportion','num',0.05,0.5,0.01],
   ['practiceTrials','Practice trials','int',0,200,1],
   ['blocks','Test blocks','int',1,10,1], ['trialsPerBlock','Trials per block','int',4,400,1],
-  ['fixMs','Fixation (ms)','int',0,2000,10], ['maxRtMs','Response window (ms)','int',300,5000,50],
-  ['soaMs','Trial duration / SOA (ms)','int',800,8000,50], ['syncFlashMs','Sync flash (ms)','int',50,1000,10],
+  ['fixMinMs','Fixation min (ms)','int',0,5000,50], ['fixMaxMs','Fixation max (ms)','int',0,8000,50],
+  ['fixMeanMs','Fixation exp. mean above min (ms)','int',1,5000,50], ['fixDist','Fixation distribution (exponential / uniform)','text'],
+  ['maxRtMs','Response window (ms)','int',300,5000,50],
+  ['postMs','Letter onset to next fixation (ms)','int',500,8000,50], ['syncFlashMs','Sync flash (ms)','int',50,1000,10],
   ['practiceFeedback','Practice feedback','bool'], ['feedbackMs','Practice feedback (ms)','int',200,3000,50],
   ['blockFeedback','Between-block feedback','bool'], ['breakSec','Break (s)','int',0,300,1],
   ['countdownSec','Countdown (s)','int',0,10,1], ['startFlashes','Block-start flashes','int',0,10,1],
@@ -314,10 +321,26 @@ function hashStr(str){ let h1=0xdeadbeef^0, h2=0x41c6ce57^0;
 function mulberry32(a){ return function(){ a|=0; a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
 function shuffle(arr, rng){ for (let i=arr.length-1;i>0;i--){ const j=Math.floor(rng()*(i+1)); [arr[i],arr[j]]=[arr[j],arr[i]]; } return arr; }
 function nNogoFor(n){ return Math.round(n*P.pNogo); }
+function fixRange(p){ const lo = Math.max(0, p.fixMinMs), hi = Math.max(lo, p.fixMaxMs); return [lo, hi]; }
+function isUniform(p){ return String(p.fixDist).trim().toLowerCase().startsWith('u'); }
+function drawForeperiod(rng){
+  const [lo, hi] = fixRange(P), u = rng();
+  if (hi <= lo) return lo;
+  if (isUniform(P)) return Math.round(lo + u*(hi - lo));
+  const m = Math.max(1, P.fixMeanMs), span = hi - lo;           // truncated exponential (inverse CDF)
+  return Math.round(lo - m*Math.log(1 - u*(1 - Math.exp(-span/m))));
+}
+function meanForeperiod(p){
+  const [lo, hi] = fixRange(p); if (hi <= lo) return lo;
+  if (isUniform(p)) return (lo + hi)/2;
+  const m = Math.max(1, p.fixMeanMs), span = hi - lo, e = Math.exp(-span/m);
+  return lo + m - span*e/(1 - e);
+}
 function makeList(n, rng){
-  const k = nNogoFor(n), list = [];
-  for (let i=0;i<n;i++) list.push(i < k ? 'nogo' : 'go');
-  return shuffle(list, rng);   // full randomisation within block, as in STOP-IT
+  const k = nNogoFor(n), types = [];
+  for (let i=0;i<n;i++) types.push(i < k ? 'nogo' : 'go');
+  shuffle(types, rng);         // full randomisation within block, as in STOP-IT
+  return types.map(type => ({type, fp: drawForeperiod(rng)}));
 }
 
 /* event timestamps: use event.timeStamp when it shares the performance.now() clock */
@@ -351,8 +374,9 @@ function renderAdvanced(){
 }
 function estDurationSec(p){
   const blockOverhead = p.countdownSec + p.startFlashes*2*p.syncFlashMs/1000 + p.leadMs/1000;
-  const prac = p.practiceTrials ? p.practiceTrials*p.soaMs/1000*1.08 + blockOverhead : 0;
-  const test = p.blocks*(p.trialsPerBlock*p.soaMs/1000 + blockOverhead) + (p.blocks-1)*p.breakSec;
+  const trial = (meanForeperiod(p) + Math.max(p.postMs, p.maxRtMs))/1000;
+  const prac = p.practiceTrials ? p.practiceTrials*trial*1.08 + blockOverhead : 0;
+  const test = p.blocks*(p.trialsPerBlock*trial + blockOverhead) + (p.blocks-1)*p.breakSec;
   return {prac, test};
 }
 function updateSummary(){
@@ -367,7 +391,7 @@ function updateSummary(){
     `Go = <b>${esc(P.goLetter)}</b>, no-go = <b>${esc(P.nogoLetter)}</b>, ${Math.round(P.pNogo*100)}% no-go.<br>` +
     `Practice: <b>${P.practiceTrials}</b> trials (${pk} no-go)` + (P.practiceFeedback ? ', with feedback.' : '.') + `<br>` +
     `Test: <b>${P.blocks} × ${n}</b> = ${tot} trials (${k} no-go per block${exact}, ${ktot} in total).<br>` +
-    `Each trial: ${P.fixMs} ms fixation → letter until tap or ${P.maxRtMs} ms → next trial every ${P.soaMs} ms.<br>` +
+    `Each trial: fixation for a random ${fixRange(P)[0]}–${fixRange(P)[1]} ms (${isUniform(P) ? 'uniform' : 'exponential'}, mean ${Math.round(meanForeperiod(P))} ms) → letter until tap or ${P.maxRtMs} ms → next fixation ${P.postMs} ms after the letter appeared.<br>` +
     `Estimated time: practice ≈ ${(d.prac/60).toFixed(1)} min, test ≈ ${(d.test/60).toFixed(1)} min (plus instructions).`;
 }
 function updateEnv(){
@@ -579,7 +603,7 @@ function endSession(){
 /* ---------- block engine ---------- */
 function runBlock(cfg){
   S.run++;
-  B = {...cfg, run: S.run, idx: 0, phase: 'countdown', phaseStart: null, anchor: null, anchorIdx: 0, cur: null, rows: []};
+  B = {...cfg, run: S.run, idx: 0, phase: 'countdown', phaseStart: null, anchor: null, cur: null, rows: []};
   paused = false;
   layout(); clearStage(); showScreen('stage');
   lastFrame = 0; deltas.length = 0;
@@ -604,7 +628,7 @@ function step(now){
     }
     case 'sync': {
       const per = 2*P.syncFlashMs, el = now - b.phaseStart, i = Math.floor(el/per);
-      if (i >= P.startFlashes){ setFlash(false); b.phase = 'lead'; b.anchor = now + P.leadMs; b.anchorIdx = b.idx; break; }
+      if (i >= P.startFlashes){ setFlash(false); b.phase = 'lead'; b.anchor = now + P.leadMs; break; }
       const on = (el % per) < P.syncFlashMs;
       if (on && b.syncIdx !== i){ b.syncIdx = i; setFlash(true); logSync(now, i); }
       else if (!on) setFlash(false);
@@ -619,16 +643,16 @@ function step(now){
   }
 }
 function beginTrial(now, sched){
-  const b = B, type = b.trials[b.idx];
+  const b = B, tr = b.trials[b.idx], type = tr.type;
   S.code++;
   const maxCode = (1 << P.codeBits) - 1;
   const code = ((S.code - 1) % maxCode) + 1;
   b.cur = {type, letter: type === 'go' ? P.goLetter : P.nogoLetter, code,
-    fixSched: sched, fix: now, onsetSched: sched + P.fixMs, onset: null, frameMs: null,
+    fp: tr.fp, fixSched: sched, fix: now, onsetSched: sched + tr.fp, onset: null, frameMs: null,
     resp: false, rt: null, x: null, y: null, inT: null,
     prematureN: 0, prematureFirst: null, extraN: 0, lateRt: null,
     flashOn: false, letterOn: false, closed: false, fbUntil: null, fbShown: false, fbEnd: null, aborted: 0};
-  hideLetter(); showFix(P.fixMs > 0); setCode(code); setTnum(code);
+  hideLetter(); showFix(tr.fp > 0); setCode(code); setTnum(code);
   b.phase = 'trial';
   stepTrial(now);
 }
@@ -652,14 +676,13 @@ function stepTrial(now){
   if (c.fbUntil !== null && now >= c.fbUntil){ hideFb(); c.fbUntil = null; c.fbEnd = now; }
   if (!c.closed || c.flashOn || c.fbUntil !== null) return;
   // schedule of the next fixation
-  let next;
-  if (b.kind === 'practice') next = Math.max(c.fixSched + P.soaMs, c.fbEnd !== null ? c.fbEnd + 300 : 0);
-  else next = b.anchor + (b.idx + 1 - b.anchorIdx)*P.soaMs;
+  let next = c.onsetSched + Math.max(P.postMs, P.maxRtMs);
+  if (b.kind === 'practice' && c.fbEnd !== null) next = Math.max(next, c.fbEnd + 300);
   if (now < next) return;
   finalize(c);
   b.idx++;
   if (b.idx >= b.trials.length){ endBlock(); return; }
-  if (now - next > 500){ b.anchor = now; b.anchorIdx = b.idx; next = now; }   // re-anchor after a long stall
+  if (now - next > 500) next = now;   // after a long stall, restart the schedule from now
   beginTrial(now, next);
 }
 function practiceFb(now, text){ const c = B.cur; c.fbShown = true; c.fbUntil = now + P.feedbackMs; showFb(text); }
@@ -697,7 +720,7 @@ function finalize(c){
     participant: S.meta.participant, session: S.meta.session, hand: S.meta.hand,
     block: b.blockNum, block_label: b.label, block_run: b.run, trial_in_block: b.idx + 1, code: c.code,
     type: c.type, letter: c.letter,
-    fix_sched_ms: r1(c.fixSched - t0), fix_ms: r1(c.fix - t0), onset_ms: c.onset === null ? '' : r1(c.onset - t0),
+    fix_sched_ms: r1(c.fixSched - t0), fix_ms: r1(c.fix - t0), foreperiod_ms: c.fp, onset_ms: c.onset === null ? '' : r1(c.onset - t0),
     onset_epoch_ms: c.onset === null ? '' : Math.round(performance.timeOrigin + c.onset),
     response: c.resp ? 1 : 0, rt_ms: r1(c.rt), touch_x_cm: c.x === null ? '' : r1(c.x), touch_y_cm: c.y === null ? '' : r1(c.y),
     in_target: c.inT === null ? '' : c.inT, outcome: outcomeOf(c),
@@ -711,7 +734,7 @@ function logSync(now, i){
   const b = B;
   S.rows.push({participant: S.meta.participant, session: S.meta.session, hand: S.meta.hand,
     block: b.blockNum, block_label: b.label, block_run: b.run, trial_in_block: '', code: '', type: 'sync', letter: '',
-    fix_sched_ms: '', fix_ms: '', onset_ms: r1(now), onset_epoch_ms: Math.round(performance.timeOrigin + now),
+    fix_sched_ms: '', fix_ms: '', foreperiod_ms: '', onset_ms: r1(now), onset_epoch_ms: Math.round(performance.timeOrigin + now),
     response: '', rt_ms: '', touch_x_cm: '', touch_y_cm: '', in_target: '', outcome: 'block_start_flash_' + (i+1),
     premature_n: '', premature_first_ms: '', extra_n: '', late_rt_ms: '', frame_ms: r1(lastDelta), aborted: ''});
 }
@@ -765,7 +788,7 @@ function resumeBlock(restart){
 
 /* ---------- data export ---------- */
 const COLS = ['participant','session','hand','block','block_label','block_run','trial_in_block','code','type','letter',
-  'fix_sched_ms','fix_ms','onset_ms','onset_epoch_ms','response','rt_ms','touch_x_cm','touch_y_cm','in_target','outcome',
+  'fix_sched_ms','fix_ms','foreperiod_ms','onset_ms','onset_epoch_ms','response','rt_ms','touch_x_cm','touch_y_cm','in_target','outcome',
   'premature_n','premature_first_ms','extra_n','late_rt_ms','frame_ms','aborted'];
 function sessionSnapshot(){ return {meta: S.meta, rows: S.rows, exported: false}; }
 function autosave(){ if (!S) return; const snap = sessionSnapshot();
