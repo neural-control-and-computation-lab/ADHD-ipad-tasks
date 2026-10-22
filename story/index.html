@@ -1,0 +1,731 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Stories">
+<meta name="theme-color" content="#000000">
+<link rel="apple-touch-icon" href="icon.png">
+<title>Storytelling Task</title>
+<!--
+  Storytelling (retell) task for iPad (Safari), NCC Lab, York University.
+  Two silent films and two spoken stories are played one at a time in a random order
+  (seeded by participant ID). After each one the participant has a fixed time (default 30 s)
+  to retell it, with on-screen instructions and a countdown.
+  Video synchronisation: the two corner patches flash 3 times when playback actually starts
+  and 3 times when the retell timer starts (first flash = the event). Every event is logged
+  with its time and exported as CSV at the end.
+  Media files are loaded once on the iPad (Files app / Dropbox) and kept in the browser's
+  storage, so nothing is uploaded and no stimuli are stored in the public repository.
+-->
+<style>
+:root{
+  --bg:#000; --fg:#f2f2f2; --muted:#9a9a9a; --card:#141414; --line:#2a2a2a;
+  --accent:#5aa9ff; --accent-ink:#00172e; --warn:#ffd24d; --danger:#ff7070; --ok:#6fd38a;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);
+  font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif;
+  -webkit-text-size-adjust:100%;overscroll-behavior:none}
+body{position:fixed;inset:0;overflow:hidden;-webkit-user-select:none;user-select:none;
+  -webkit-touch-callout:none;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.hidden{display:none !important}
+.screen{position:absolute;inset:0}
+.ui{overflow-y:auto;-webkit-overflow-scrolling:touch;touch-action:pan-y;
+  padding:max(20px,env(safe-area-inset-top)) 20px 60px}
+.wrap{max-width:780px;margin:0 auto}
+h1{font-size:26px;margin:10px 0 4px;font-weight:650;letter-spacing:-.01em}
+.sub{color:var(--muted);margin:0 0 18px;font-size:15px;line-height:1.4}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 18px 16px;margin:0 0 14px}
+.card h2{font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:2px 0 10px;font-weight:600}
+.row{display:flex;align-items:center;gap:12px;margin:9px 0;font-size:17px}
+.row > span{flex:0 0 200px;color:#ddd}
+input,select{font:inherit;font-size:17px;color:var(--fg);background:#0b0b0b;border:1px solid #343434;
+  border-radius:10px;padding:9px 12px;flex:1;min-width:0;-webkit-user-select:text;user-select:text}
+input[type=checkbox]{flex:0 0 auto;width:24px;height:24px;accent-color:var(--accent)}
+input:focus,select:focus{outline:2px solid var(--accent);outline-offset:1px}
+.summary{font-size:16px;line-height:1.55;color:#ddd}
+.summary b{color:#fff}
+.badge{display:inline-block;font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;
+  padding:3px 8px;border-radius:6px;background:#3a2f00;color:var(--warn);margin-left:8px;vertical-align:middle}
+details summary{cursor:pointer;color:#ddd;font-size:16px;padding:4px 0}
+.btn{appearance:none;-webkit-appearance:none;border:0;border-radius:12px;padding:14px 22px;font:inherit;
+  font-size:18px;font-weight:600;background:#2b2b2b;color:var(--fg);cursor:pointer;touch-action:manipulation}
+.btn.primary{background:var(--accent);color:var(--accent-ink)}
+.btn.danger{background:#3a1515;color:#ffb3b3}
+.btn.small{font-size:15px;padding:9px 14px;border-radius:10px}
+.btn:disabled{opacity:.35}
+.btns{display:flex;flex-wrap:wrap;gap:12px;margin-top:10px}
+.err{color:var(--danger);font-size:15px;min-height:20px;margin-top:6px}
+.slot{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 0;border-bottom:1px solid var(--line)}
+.slot:last-child{border-bottom:0}
+.slot .kind{flex:0 0 64px;font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.slot input.lbl{flex:0 1 170px}
+.slot .file{flex:1 1 200px;font-size:15px;color:#ccc;min-width:160px;word-break:break-all}
+.slot .file.missing{color:var(--warn)}
+.order{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
+.order span{background:#1f1f1f;border:1px solid #333;border-radius:8px;padding:5px 10px;font-size:15px}
+table.log{border-collapse:collapse;width:100%;font-size:14px;font-variant-numeric:tabular-nums}
+table.log th,table.log td{text-align:left;padding:5px 8px;border-bottom:1px solid var(--line)}
+table.log th{color:var(--muted);font-weight:600}
+.sess{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:8px 0;border-bottom:1px solid var(--line);font-size:15px}
+.sess:last-child{border-bottom:0}
+.sess .grow{flex:1;min-width:180px}
+
+/* participant / experimenter message screen */
+#msg{display:flex;text-align:center;padding:40px 32px}
+#msg .box{max-width:820px;width:100%;margin:auto}
+#msg h1{font-size:34px;margin-bottom:18px}
+#msg .body{font-size:25px;line-height:1.45;color:#eee}
+#msg .body p{margin:0 0 16px}
+#msg .body .big{font-size:30px;font-weight:700}
+#msg .body .small{font-size:20px;color:#bbb}
+#msg .next{display:inline-block;text-align:left;background:#121212;border:1px solid #333;border-radius:14px;padding:16px 22px;margin:4px 0 8px}
+#msg .next .k{font-size:14px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:700}
+#msg .next .v{font-size:30px;font-weight:700;margin-top:4px}
+#msg .next .d{font-size:18px;color:#bbb;margin-top:4px}
+#msg .note{font-size:16px;color:var(--muted);margin-top:18px}
+#msg .btns{justify-content:center;margin-top:26px}
+#msg .btn{font-size:22px;padding:18px 34px;min-width:200px}
+
+/* stage */
+#stage{background:#000;touch-action:none;overflow:hidden}
+#stage .el{position:absolute}
+.flash{background:#000;z-index:5}
+.flash.on{background:#fff}
+#vid{background:#000;object-fit:contain}
+#listen{left:0;right:0;text-align:center;color:#cfcfcf}
+#listen svg{display:block;margin:0 auto 18px}
+#listen div{font-size:30px;font-weight:600}
+#retell{left:0;right:0;text-align:center}
+#retell .t1{font-size:34px;font-weight:700;color:#fff}
+#retell .t2{font-size:22px;color:#bbb;margin-top:10px}
+#retell .clock{font-size:150px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1;margin-top:26px;color:#fff}
+#retell .bar{height:12px;background:#222;border-radius:6px;margin:26px auto 0;overflow:hidden}
+#retell .bar i{display:block;height:100%;background:#8a8a8a;width:100%}
+#done{left:0;right:0;text-align:center;font-size:34px;font-weight:700}
+
+/* menu + preview overlays */
+.overlay{position:absolute;inset:0;background:rgba(0,0,0,.92);display:flex;align-items:center;justify-content:center;z-index:50;touch-action:manipulation}
+.overlay .card{max-width:600px;width:92%;text-align:center;padding:24px}
+.overlay .btns{justify-content:center;flex-direction:column}
+#prevMedia{max-width:100%;max-height:50vh;display:block;margin:0 auto 12px;background:#000}
+</style>
+</head>
+<body>
+
+<!-- ================= SETUP (experimenter) ================= -->
+<div id="setup" class="screen ui">
+ <div class="wrap">
+  <h1>Storytelling task</h1>
+  <p class="sub">NCC Lab · ATHENA ADHD study. Two silent films and two spoken stories, one at a time in random order. After each one the participant retells it while a timer counts down.</p>
+
+  <div class="card">
+   <h2>Participant</h2>
+   <label class="row"><span>Participant ID</span><input id="pid" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="e.g. P001"></label>
+   <label class="row"><span>Notes (optional)</span><input id="notes" autocomplete="off"></label>
+   <div class="summary" id="orderBox"></div>
+   <div class="err" id="setupErr"></div>
+  </div>
+
+  <div class="card">
+   <h2>Films and stories on this iPad</h2>
+   <div id="slots"></div>
+   <p class="sub" style="margin:10px 0 0">Load each file once (e.g. from Dropbox in the Files app). They stay on this iPad until removed. Videos: MP4 or MOV. Audio: MP3, M4A or WAV. Turn the iPad volume up and test each one.</p>
+  </div>
+
+  <div class="card">
+   <h2>Design <span id="nonDefault" class="badge hidden">non-default settings</span></h2>
+   <div class="summary" id="designSummary"></div>
+   <details style="margin-top:10px"><summary>Advanced settings</summary>
+     <div id="advanced"></div>
+     <div class="btns"><button class="btn small" id="resetDefaults">Reset to defaults</button></div>
+   </details>
+  </div>
+
+  <div class="card">
+   <h2>Checks</h2>
+   <div class="summary" id="envSummary"></div>
+   <div class="btns">
+     <button class="btn" id="previewBtn">Check layout &amp; size</button>
+     <button class="btn" id="fsBtn">Full screen</button>
+   </div>
+  </div>
+
+  <div class="card hidden" id="savedCard">
+   <h2>Saved sessions on this iPad</h2>
+   <div id="savedList"></div>
+  </div>
+
+  <div class="btns" style="margin-top:6px">
+    <button class="btn primary" id="startBtn" style="font-size:20px;padding:16px 40px">Start session</button>
+  </div>
+  <p class="sub" style="margin-top:22px">During playback or the countdown: press and hold the top centre of the screen for 1 s for the experimenter menu (or press Esc on a keyboard).</p>
+ </div>
+</div>
+
+<!-- ================= MESSAGES ================= -->
+<div id="msg" class="screen ui hidden">
+  <div class="box">
+    <h1 id="msgTitle"></h1>
+    <div class="body" id="msgBody"></div>
+    <div class="btns" id="msgBtns"></div>
+    <div class="note" id="msgNote"></div>
+    <div id="msgExtra"></div>
+  </div>
+</div>
+
+<!-- ================= STAGE ================= -->
+<div id="stage" class="screen hidden">
+  <div class="el flash" id="flashL"></div>
+  <div class="el flash" id="flashR"></div>
+  <video class="el hidden" id="vid" playsinline webkit-playsinline preload="auto"></video>
+  <audio id="aud" preload="auto"></audio>
+  <div class="el hidden" id="listen">
+    <svg width="120" height="120" viewBox="0 0 24 24" fill="none" stroke="#cfcfcf" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/></svg>
+    <div id="listenTxt">Listen to the story</div>
+  </div>
+  <div class="el hidden" id="retell">
+    <div class="t1" id="retellT1"></div>
+    <div class="t2" id="retellT2"></div>
+    <div class="clock" id="clock">30</div>
+    <div class="bar" id="bar"><i id="barFill"></i></div>
+  </div>
+  <div class="el hidden" id="done"></div>
+</div>
+
+<!-- ================= EXPERIMENTER MENU ================= -->
+<div id="menu" class="overlay hidden">
+  <div class="card">
+    <h2 style="font-size:15px">Experimenter menu</h2>
+    <p class="summary" id="menuInfo"></p>
+    <div class="btns" id="menuBtns"></div>
+  </div>
+</div>
+
+<!-- ================= MEDIA PREVIEW (setup) ================= -->
+<div id="prev" class="overlay hidden">
+  <div class="card">
+    <h2 style="font-size:15px" id="prevTitle">Preview</h2>
+    <div id="prevBox"></div>
+    <div class="btns"><button class="btn" id="prevClose">Close</button></div>
+  </div>
+</div>
+
+<script>
+'use strict';
+const VERSION = '1.0.0';
+/* ---------------- parameters (URL query can override, e.g. ?retellSec=45) ---------------- */
+const DEFAULTS = {
+  retellSec: 30,          // time to retell each film/story
+  retellDelayMs: 0,       // gap between the end of the film/story and the retell timer
+  doneMs: 2000,           // "Time's up" message after each retell
+  syncFlashMs: 150,       // each corner flash: on for this long, then off for this long
+  startFlashes: 3,        // flashes at playback start and at retell start
+  patchCm: 3,             // corner patch size
+  pxPerCm: 52,            // CSS px per cm (most iPads: 52; iPad mini: 64)
+  seed: ''                // order seed; blank = participant ID
+};
+const PARAM_META = [
+  ['retellSec','Retell time (s)','int',5,600,1], ['retellDelayMs','Gap before retell timer (ms)','int',0,10000,100],
+  ['doneMs','"Time\'s up" message (ms)','int',0,10000,100],
+  ['syncFlashMs','Corner patch on-time (ms)','int',50,1000,10], ['startFlashes','Flashes per event','int',1,10,1],
+  ['patchCm','Corner patch size (cm)','num',1,6,0.5], ['pxPerCm','Screen scale (px per cm)','num',20,120,0.5],
+  ['seed','Order seed (blank = participant ID)','text']
+];
+const SLOTS = [
+  {id:'film1',  kind:'video', label:'Film 1'},
+  {id:'film2',  kind:'video', label:'Film 2'},
+  {id:'story1', kind:'audio', label:'Story 1'},
+  {id:'story2', kind:'audio', label:'Story 2'}
+];
+/* participant-facing text (edit freely) */
+const TEXT = {
+  intro: () => `<p>You'll watch <b>2 short silent films</b> and listen to <b>2 short stories</b>, one at a time.</p>
+     <p>After each one, tell us what happened. You'll have ${P.retellSec} seconds, and a timer will count down.</p>
+     <p class="small">Sit comfortably. There's nothing to press.</p>`,
+  listen: () => 'Listen to the story',
+  retellTitle: kind => kind === 'video' ? 'Tell us what happened in the film.' : 'Tell us what happened in the story.',
+  retellSub: () => `You have ${P.retellSec} seconds. Keep going until the timer ends.`,
+  timesUp: () => "Time's up. Thank you!",
+  end: () => `<p class="big">All done. Thank you!</p>`
+};
+
+/* ---------------- utilities ---------------- */
+const $ = id => document.getElementById(id);
+let P = {...DEFAULTS}, URLP = {};
+let S = null;                 // session
+const media = {};             // slot id -> {name, type, size, duration, label, url}
+const LS_PREFIX = 'storyTask:';
+let wakeLock = null, refreshHz = null;
+
+function coerce(key, v){
+  const d = DEFAULTS[key];
+  if (typeof d === 'boolean') return v === true || v === 'true' || v === '1';
+  if (typeof d === 'number'){ const n = Number(v); return Number.isFinite(n) ? n : d; }
+  return String(v);
+}
+function readUrlParams(){ const q = new URLSearchParams(location.search), o = {}; for (const [k,v] of q) if (k in DEFAULTS) o[k] = coerce(k, v); return o; }
+function lsGet(k){ try { return localStorage.getItem(k); } catch(e){ return null; } }
+function lsSet(k,v){ try { localStorage.setItem(k,v); return true; } catch(e){ return false; } }
+function lsDel(k){ try { localStorage.removeItem(k); } catch(e){} }
+function lsKeys(){ try { return Object.keys(localStorage).filter(k => k.startsWith(LS_PREFIX)); } catch(e){ return []; } }
+function pad(n,w){ return String(n).padStart(w,'0'); }
+function stamp(d){ return `${d.getFullYear()}${pad(d.getMonth()+1,2)}${pad(d.getDate(),2)}-${pad(d.getHours(),2)}${pad(d.getMinutes(),2)}${pad(d.getSeconds(),2)}`; }
+function esc(s){ return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function fmtDur(s){ if (!Number.isFinite(s)) return '–'; const m = Math.floor(s/60), r = Math.round(s - m*60); return `${m}:${pad(r,2)}`; }
+function r1(x){ return x == null || !Number.isFinite(x) ? '' : Math.round(x*10)/10; }
+function hashStr(str){ let h1=0xdeadbeef^0, h2=0x41c6ce57^0;
+  for (let i=0;i<str.length;i++){ const ch=str.charCodeAt(i); h1=Math.imul(h1^ch,2654435761); h2=Math.imul(h2^ch,1597334677); }
+  h1=Math.imul(h1^(h1>>>16),2246822507)^Math.imul(h2^(h2>>>13),3266489909);
+  h2=Math.imul(h2^(h2>>>16),2246822507)^Math.imul(h1^(h1>>>13),3266489909);
+  return (h1>>>0) ^ (h2>>>0); }
+function mulberry32(a){ return function(){ a|=0; a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+function seededOrder(seedStr){
+  const rng = mulberry32(hashStr('story|' + seedStr)), ids = SLOTS.map(s => s.id);
+  for (let i=ids.length-1;i>0;i--){ const j=Math.floor(rng()*(i+1)); [ids[i],ids[j]]=[ids[j],ids[i]]; }
+  return ids;
+}
+const slotById = id => SLOTS.find(s => s.id === id);
+const labelOf = id => (media[id] && media[id].label) || lsGet(LS_PREFIX + 'label:' + id) || slotById(id).label;
+const nowEpoch = t => Math.round(performance.timeOrigin + t);
+
+/* ---------------- media storage (IndexedDB, per device) ---------------- */
+const DB_NAME = 'ncclab-story-media', STORE = 'media';
+let dbp = null;
+function db(){ if (!dbp) dbp = new Promise((res, rej) => { const r = indexedDB.open(DB_NAME, 1);
+  r.onupgradeneeded = () => r.result.createObjectStore(STORE); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }); return dbp; }
+async function idb(mode, fn){ const d = await db(); return new Promise((res, rej) => { const tx = d.transaction(STORE, mode); const req = fn(tx.objectStore(STORE));
+  tx.oncomplete = () => res(req && req.result); tx.onerror = () => rej(tx.error); tx.onabort = () => rej(tx.error); }); }
+const idbGet = k => idb('readonly', s => s.get(k));
+const idbPut = (k, v) => idb('readwrite', s => s.put(v, k));
+const idbDel = k => idb('readwrite', s => s.delete(k));
+
+function probeDuration(url, kind){
+  return new Promise(res => { const el = document.createElement(kind); el.preload = 'metadata'; el.muted = true;
+    const done = () => res(Number.isFinite(el.duration) ? el.duration : NaN);
+    el.onloadedmetadata = done; el.onerror = () => res(NaN); setTimeout(() => res(NaN), 8000); el.src = url; });
+}
+async function loadStored(){
+  for (const s of SLOTS){
+    try {
+      const rec = await idbGet(s.id);
+      if (rec && rec.buf){
+        const blob = new Blob([rec.buf], {type: rec.type || ''});
+        media[s.id] = {name: rec.name, type: rec.type, size: rec.size, duration: rec.duration, label: rec.label || s.label, url: URL.createObjectURL(blob)};
+      }
+    } catch(e){ console.warn('load', s.id, e); }
+  }
+}
+async function storeFile(slot, file){
+  const buf = await file.arrayBuffer();
+  const url = URL.createObjectURL(new Blob([buf], {type: file.type}));
+  const duration = await probeDuration(url, slot.kind);
+  const label = labelOf(slot.id);
+  await idbPut(slot.id, {buf, name: file.name, type: file.type, size: file.size, duration, label, savedAt: Date.now()});
+  if (media[slot.id]) URL.revokeObjectURL(media[slot.id].url);
+  media[slot.id] = {name: file.name, type: file.type, size: file.size, duration, label, url};
+}
+async function saveLabel(slotId, label){
+  media[slotId] && (media[slotId].label = label);
+  try { const rec = await idbGet(slotId); if (rec){ rec.label = label; await idbPut(slotId, rec); } } catch(e){}
+  lsSet(LS_PREFIX + 'label:' + slotId, label);
+}
+
+/* ---------------- setup screen ---------------- */
+function renderSlots(){
+  const box = $('slots'); box.innerHTML = '';
+  for (const s of SLOTS){
+    const m = media[s.id];
+    const row = document.createElement('div'); row.className = 'slot';
+    const kind = document.createElement('div'); kind.className = 'kind'; kind.textContent = s.kind === 'video' ? 'Film' : 'Story';
+    const lbl = document.createElement('input'); lbl.className = 'lbl'; lbl.value = labelOf(s.id); lbl.setAttribute('aria-label', 'Label for ' + s.label);
+    lbl.addEventListener('change', () => { saveLabel(s.id, lbl.value.trim() || s.label); updateOrder(); });
+    const info = document.createElement('div'); info.className = 'file' + (m ? '' : ' missing');
+    info.textContent = m ? `${m.name} · ${fmtDur(m.duration)} · ${(m.size/1e6).toFixed(1)} MB` : 'No file loaded';
+    const inp = document.createElement('input'); inp.type = 'file'; inp.className = 'hidden'; inp.dataset.slot = s.id;
+    inp.accept = s.kind === 'video' ? 'video/*,.mp4,.mov,.m4v' : 'audio/*,.mp3,.m4a,.wav,.aac';
+    inp.addEventListener('change', async () => {
+      const f = inp.files && inp.files[0]; if (!f) return;
+      info.textContent = 'Loading…'; info.className = 'file';
+      try { await storeFile(s, f); } catch(e){ info.textContent = 'Could not save this file: ' + (e && e.message || e); info.className = 'file missing'; return; }
+      renderSlots(); updateOrder();
+    });
+    const load = document.createElement('button'); load.className = 'btn small'; load.textContent = m ? 'Replace' : 'Load file';
+    load.onclick = () => inp.click();
+    const play = document.createElement('button'); play.className = 'btn small'; play.textContent = 'Test'; play.disabled = !m;
+    play.onclick = () => openPreview(s.id);
+    row.append(kind, lbl, info, load, play, inp);
+    if (m){ const del = document.createElement('button'); del.className = 'btn small danger'; del.textContent = 'Remove';
+      del.onclick = async () => { if (!confirm('Remove this file from the iPad?')) return; await idbDel(s.id); URL.revokeObjectURL(m.url); delete media[s.id]; renderSlots(); updateOrder(); };
+      row.appendChild(del); }
+    box.appendChild(row);
+  }
+}
+function openPreview(id){
+  const s = slotById(id), m = media[id]; if (!m) return;
+  $('prevTitle').textContent = `${labelOf(id)} (${m.name})`;
+  const el = document.createElement(s.kind); el.id = 'prevMedia'; el.controls = true; el.src = m.url;
+  if (s.kind === 'video'){ el.playsInline = true; el.setAttribute('playsinline',''); }
+  $('prevBox').innerHTML = ''; $('prevBox').appendChild(el);
+  $('prev').classList.remove('hidden');
+  el.play().catch(() => {});
+}
+$('prevClose').onclick = () => { const el = $('prevMedia'); if (el){ el.pause(); el.removeAttribute('src'); el.load(); } $('prevBox').innerHTML = ''; $('prev').classList.add('hidden'); };
+
+function currentParams(){
+  const p = {...DEFAULTS, ...URLP};
+  document.querySelectorAll('#advanced [data-key]').forEach(el => { p[el.dataset.key] = coerce(el.dataset.key, el.value); });
+  return p;
+}
+function renderAdvanced(){
+  const box = $('advanced'); box.innerHTML = ''; const base = {...DEFAULTS, ...URLP};
+  for (const [k,label,type,min,max,step] of PARAM_META){
+    const row = document.createElement('label'); row.className = 'row';
+    const sp = document.createElement('span'); sp.textContent = label; row.appendChild(sp);
+    const inp = document.createElement('input'); inp.dataset.key = k;
+    if (type === 'text'){ inp.type = 'text'; inp.autocapitalize = 'off'; inp.spellcheck = false; }
+    else { inp.type = 'number'; inp.inputMode = 'decimal'; inp.min = min; inp.max = max; inp.step = step; }
+    inp.value = base[k];
+    inp.addEventListener('input', updateSummary); inp.addEventListener('change', updateSummary);
+    row.appendChild(inp); box.appendChild(row);
+  }
+}
+function updateSummary(){
+  P = currentParams();
+  const nonDef = Object.keys(DEFAULTS).some(k => String(P[k]) !== String(DEFAULTS[k]));
+  $('nonDefault').classList.toggle('hidden', !nonDef);
+  const total = SLOTS.reduce((a, s) => a + ((media[s.id] && media[s.id].duration) || 0), 0);
+  const est = total + SLOTS.length*(P.retellSec + P.retellDelayMs/1000 + P.doneMs/1000 + 2*P.startFlashes*P.syncFlashMs/1000*2);
+  $('designSummary').innerHTML =
+    `4 trials: 2 films and 2 stories, in a random order set by the participant ID.<br>` +
+    `Each trial: the experimenter sees what's next and presses Start → the film or story plays → the participant has <b>${P.retellSec} s</b> to retell it, with a countdown.<br>` +
+    `Sync: both corner patches flash ${P.startFlashes}× (${P.syncFlashMs} ms on/off) when playback starts and when the retell timer starts.<br>` +
+    `Estimated time: ≈ ${(est/60).toFixed(1)} min plus instructions${total ? '' : ' (load the files to include their length)'}.`;
+  updateOrder();
+}
+function updateOrder(){
+  const id = $('pid').value.trim();
+  const seedStr = (P.seed && P.seed.trim()) || id;
+  if (!seedStr){ $('orderBox').innerHTML = '<span style="color:var(--muted)">Enter an ID to see this participant\'s order.</span>'; return; }
+  const ord = seededOrder(seedStr);
+  $('orderBox').innerHTML = 'Order for this participant:<div class="order">' + ord.map((s,i) => `<span>${i+1}. ${esc(labelOf(s))}</span>`).join('') + '</div>';
+}
+function updateEnv(){
+  const standalone = window.navigator.standalone === true || matchMedia('(display-mode: standalone)').matches;
+  $('envSummary').innerHTML =
+    `Screen: ${innerWidth} × ${innerHeight} CSS px (${(innerWidth/P.pxPerCm).toFixed(1)} × ${(innerHeight/P.pxPerCm).toFixed(1)} cm), ${innerWidth >= innerHeight ? 'landscape' : 'portrait'}.` +
+    (refreshHz ? ` Display refresh ≈ ${refreshHz} Hz.` : '') + `<br>` +
+    `Mode: ${standalone ? '<b>home-screen app</b>' : 'browser tab'}. Files loaded in Safari and in the home-screen app are stored separately, so load them in the mode you'll run in.<br>` +
+    `Wake lock: ${'wakeLock' in navigator ? 'supported' : '<span style="color:var(--warn)">not supported, set Auto-Lock to Never</span>'}.`;
+}
+function measureRefresh(){ const ts = []; const f = t => { ts.push(t); if (ts.length < 40) requestAnimationFrame(f);
+  else { const d = []; for (let i=1;i<ts.length;i++) d.push(ts[i]-ts[i-1]); d.sort((a,b)=>a-b); const m = d[d.length>>1]; refreshHz = m > 0 ? Math.round(1000/m) : null; updateEnv(); } };
+  requestAnimationFrame(f); }
+
+/* ---------------- layout ---------------- */
+const L = {};
+function layout(){
+  const W = innerWidth, H = innerHeight, k = P.pxPerCm, patch = P.patchCm*k;
+  const set = (el, o) => { for (const p in o) el.style[p] = (typeof o[p] === 'number') ? o[p] + 'px' : o[p]; };
+  set($('flashL'), {left:0, top:0, width:patch, height:patch});
+  set($('flashR'), {right:0, top:0, width:patch, height:patch, left:'auto'});
+  const top = patch + 0.2*k;                      // video sits below the band holding the patches
+  set($('vid'), {left:0, top:top, width:W, height:H - top});
+  set($('listen'), {top: Math.max(top, H/2 - 110)});
+  set($('retell'), {top: Math.max(top, H/2 - 200)});
+  $('bar').style.width = Math.min(W*0.6, 14*k) + 'px';
+  set($('done'), {top: H/2 - 30});
+  L.menu = {x0: W/2 - 3*k, x1: W/2 + 3*k, y0: 0, y1: patch};      // hold here for the experimenter menu
+}
+function setFlash(on){ $('flashL').classList.toggle('on', on); $('flashR').classList.toggle('on', on); }
+function showOnly(id){ for (const e of ['vid','listen','retell','done']) $(e).classList.toggle('hidden', e !== id); }
+function showScreen(id){ for (const s of ['setup','msg','stage']) $(s).classList.toggle('hidden', s !== id); }
+function message({title='', body='', buttons=[], note=''}){
+  showScreen('msg');
+  $('msgTitle').textContent = title; $('msgBody').innerHTML = body; $('msgNote').innerHTML = note; $('msgExtra').innerHTML = '';
+  const box = $('msgBtns'); box.innerHTML = '';
+  for (const b of buttons){
+    const el = document.createElement('button'); el.className = 'btn' + (b.primary ? ' primary' : '') + (b.small ? ' small' : '');
+    el.textContent = b.label; let fired = false;
+    el.addEventListener('click', () => { if (fired) return; fired = true; b.onClick(); });
+    box.appendChild(el);
+  }
+  $('msg').scrollTop = 0;
+}
+
+/* ---------------- logging ---------------- */
+const COLS = ['participant','session','trial','slot','label','kind','file','event','t_ms','epoch_ms','media_time_s','detail'];
+function log(event, extra = {}){
+  if (!S) return;
+  const t = extra.t != null ? extra.t : performance.now();
+  const tr = S.cur;
+  S.rows.push({participant: S.meta.participant, session: S.meta.session,
+    trial: tr ? tr.n : '', slot: tr ? tr.slot : '', label: tr ? tr.label : '', kind: tr ? tr.kind : '', file: tr ? tr.file : '',
+    event, t_ms: r1(t), epoch_ms: nowEpoch(t), media_time_s: extra.mt != null ? Math.round(extra.mt*1000)/1000 : '', detail: extra.detail || ''});
+  autosave();
+}
+function autosave(){ if (!S) return; const snap = {meta: S.meta, rows: S.rows, exported: false};
+  try { const prev = JSON.parse(lsGet(S.lsKey) || 'null'); snap.exported = !!(prev && prev.exported && prev.rows && prev.rows.length === snap.rows.length); } catch(e){}
+  lsSet(S.lsKey, JSON.stringify(snap)); }
+function csvText(d){
+  const q = v => { const s = v == null ? '' : String(v); return /[",\n]/.test(s) ? '"' + s.replace(/"/g,'""') + '"' : s; };
+  const m = d.meta;
+  const head = [
+    `# task=${m.task} version=${m.version} participant=${m.participant} session=${m.session} started=${m.started_iso}`,
+    `# order=${m.order.join(' ')} seed=${m.seed} notes=${(m.notes||'').replace(/[\r\n]+/g,' ')}`,
+    `# media=${JSON.stringify(m.media)}`,
+    `# params=${JSON.stringify(m.params)}`,
+    `# device=${JSON.stringify(m.device)}`,
+    `# one row per event; t_ms = performance.now() on the iPad; epoch_ms = wall clock; sync_flash rows are the corner-patch onsets (flash 1 = the event)`
+  ];
+  return head.join('\n') + '\n' + [COLS.join(','), ...d.rows.map(r => COLS.map(c => q(r[c])).join(','))].join('\n') + '\n';
+}
+const csvName = d => `STORY_${d.meta.participant}_${d.meta.session}.csv`;
+function markExported(key){ try { const d = JSON.parse(lsGet(key)); if (d){ d.exported = true; lsSet(key, JSON.stringify(d)); } } catch(e){} renderSaved(); }
+async function exportCsv(d, key){
+  const name = csvName(d), text = csvText(d);
+  try { const file = new File([text], name, {type:'text/csv'});
+    if (navigator.canShare && navigator.canShare({files:[file]})){ await navigator.share({files:[file], title:name}); markExported(key); return; }
+  } catch(e){ if (e && e.name === 'AbortError') return; }
+  downloadCsv(d, key);
+}
+function downloadCsv(d, key){
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csvText(d)], {type:'text/csv'})); a.download = csvName(d);
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 10000); markExported(key);
+}
+function renderSaved(){
+  const keys = lsKeys().filter(k => k.startsWith(LS_PREFIX + 'session:')).sort().reverse();
+  const list = $('savedList'); list.innerHTML = ''; $('savedCard').classList.toggle('hidden', keys.length === 0);
+  for (const k of keys){
+    let d; try { d = JSON.parse(lsGet(k)); } catch(e){ continue; } if (!d || !d.meta) continue;
+    const done = new Set(d.rows.filter(r => r.event === 'retell_end').map(r => r.trial)).size;
+    const div = document.createElement('div'); div.className = 'sess';
+    div.innerHTML = `<div class="grow"><b>${esc(d.meta.participant)}</b> · ${esc(d.meta.started_local)} · ${done} of 4 trials${d.exported ? ' · <span style="color:var(--ok)">exported</span>' : ' · <span style="color:var(--warn)">not exported</span>'}</div>`;
+    const b1 = document.createElement('button'); b1.className = 'btn small'; b1.textContent = 'Save CSV'; b1.onclick = () => exportCsv(d, k);
+    const b2 = document.createElement('button'); b2.className = 'btn small danger'; b2.textContent = 'Delete';
+    b2.onclick = () => { if (confirm('Delete this saved session from the iPad?')){ lsDel(k); renderSaved(); } };
+    div.append(b1, b2); list.appendChild(div);
+  }
+}
+
+/* ---------------- sync flashes ---------------- */
+let flashRun = null;
+function flashes(tag){
+  // Flash both patches N times starting on the next animation frame; resolves with the onset time of flash 1.
+  return new Promise(resolve => {
+    let i = -1, t0 = null, first = null; const per = 2*P.syncFlashMs, my = {};
+    flashRun = my;
+    const step = now => {
+      if (flashRun !== my){ setFlash(false); return; }
+      if (t0 === null) t0 = now;
+      const el = now - t0, k = Math.floor(el/per), on = (el % per) < P.syncFlashMs;
+      if (k >= P.startFlashes){ setFlash(false); flashRun = null; resolve(first); return; }
+      if (on && k !== i){ i = k; setFlash(true); if (first === null) first = now;
+        const tr = S && S.cur; log('sync_flash', {t: now, mt: tr && tr.el ? tr.el.currentTime : null, detail: `${tag} flash ${k+1}`}); }
+      else if (!on) setFlash(false);
+      requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  });
+}
+
+/* ---------------- session flow ---------------- */
+async function startSession(){
+  const id = $('pid').value.trim();
+  if (!id){ $('setupErr').textContent = 'Enter a participant ID first.'; return; }
+  if (!/^[A-Za-z0-9_\-]+$/.test(id)){ $('setupErr').textContent = 'Use letters, numbers, - or _ only.'; return; }
+  const missing = SLOTS.filter(s => !media[s.id]).map(s => labelOf(s.id));
+  if (missing.length){ $('setupErr').textContent = 'Load all four files first (missing: ' + missing.join(', ') + ').'; return; }
+  $('setupErr').textContent = '';
+  P = currentParams();
+  const now = new Date(), seedStr = (P.seed && P.seed.trim()) || id;
+  const order = seededOrder(seedStr);
+  S = { meta: {task:'storytelling', version: VERSION, participant: id, notes: $('notes').value.trim(),
+          session: stamp(now), started_local: now.toLocaleString(), started_iso: now.toISOString(), seed: seedStr,
+          order: order.map(labelOf), params: {...P},
+          media: Object.fromEntries(SLOTS.map(s => [s.id, {label: labelOf(s.id), file: media[s.id].name, duration_s: r1(media[s.id].duration)}])),
+          device: {ua: navigator.userAgent, w: innerWidth, h: innerHeight, dpr: devicePixelRatio || 1, standalone: navigator.standalone === true, refreshHz}},
+        order, idx: 0, rows: [], cur: null, state: 'idle' };
+  S.lsKey = LS_PREFIX + 'session:' + S.meta.session + ':' + id;
+  log('session_start', {detail: 'order: ' + S.meta.order.join(' > ')});
+  requestWakeLock(); layout();
+  message({title: 'Films and stories', body: TEXT.intro(), buttons: [{label:'Continue', primary:true, onClick: () => trialPreview()}]});
+}
+function trialPreview(){
+  S.state = 'preview'; S.cur = null;
+  if (S.idx >= S.order.length){ endSession(); return; }
+  const slotId = S.order[S.idx], s = slotById(slotId), m = media[slotId];
+  const next = S.idx + 1 < S.order.length ? `Then: ${esc(labelOf(S.order[S.idx+1]))}` : 'This is the last one.';
+  message({title: `Trial ${S.idx+1} of ${S.order.length}`,
+    body: `<div class="next"><div class="k">Next ${s.kind === 'video' ? 'film' : 'story'}</div><div class="v">${esc(labelOf(slotId))}</div>` +
+          `<div class="d">${esc(m.name)} · ${fmtDur(m.duration)}</div></div>`,
+    note: `Experimenter: press Start when the participant is ready. ${next}`,
+    buttons: [{label: 'Start', primary: true, onClick: () => startTrial(slotId)}]});
+}
+function startTrial(slotId){
+  // Called from the Start button tap, so media playback is allowed (iOS needs a user gesture).
+  const s = slotById(slotId), m = media[slotId];
+  const el = s.kind === 'video' ? $('vid') : $('aud');
+  S.cur = {n: S.idx + 1, slot: slotId, label: labelOf(slotId), kind: s.kind, file: m.name, el, playingSeen: false, ended: false};
+  S.state = 'media';
+  showScreen('stage'); layout(); setFlash(false);
+  if (s.kind === 'video') showOnly('vid'); else { $('listenTxt').textContent = TEXT.listen(); showOnly('listen'); }
+  log('start_pressed');
+  el.onplaying = null; el.onended = null; el.onerror = null;
+  el.src = m.url; el.currentTime = 0;
+  const tr = S.cur;
+  el.onerror = () => { if (S.cur !== tr) return; log('media_error', {detail: String(el.error && el.error.code)}); mediaFailed('The file could not be played.'); };
+  el.onplaying = () => {
+    if (S.cur !== tr || tr.playingSeen) return;
+    tr.playingSeen = true; const t = performance.now(); log('media_playing', {t, mt: el.currentTime});
+    const go = () => { if (S.cur === tr && S.state === 'media') flashes('playback start'); };
+    if (s.kind === 'video' && el.requestVideoFrameCallback) el.requestVideoFrameCallback(() => go());   // first frame on screen
+    else go();
+  };
+  el.onended = () => { if (S.cur !== tr || tr.ended) return; tr.ended = true; log('media_ended', {mt: el.currentTime}); startRetell(); };
+  const p = el.play();
+  if (p && p.catch) p.catch(err => { if (S.cur === tr) { log('media_error', {detail: String(err && err.name)}); mediaFailed('Playback did not start (' + (err && err.name) + ').'); } });
+}
+function mediaFailed(why){
+  stopMedia();
+  message({title: `Trial ${S.idx+1}: problem`, body: `<p>${esc(why)}</p><p class="small">Check the file on the setup screen. You can try again or skip this trial.</p>`,
+    buttons: [{label:'Try again', primary:true, onClick: () => trialPreview()}, {label:'Skip this trial', onClick: () => { log('trial_skipped'); S.idx++; trialPreview(); }}]});
+}
+function stopMedia(){ for (const el of [$('vid'), $('aud')]){ el.onplaying = el.onended = el.onerror = null; try { el.pause(); } catch(e){} } }
+async function startRetell(){
+  const tr = S.cur; if (!tr) return;
+  stopMedia(); S.state = 'retell-wait';
+  $('retellT1').textContent = TEXT.retellTitle(tr.kind); $('retellT2').textContent = TEXT.retellSub();
+  $('clock').textContent = String(P.retellSec); $('barFill').style.width = '100%';
+  showOnly('retell');
+  if (P.retellDelayMs > 0) await new Promise(r => setTimeout(r, P.retellDelayMs));
+  if (S.cur !== tr || S.state !== 'retell-wait') return;
+  S.state = 'retell';
+  const tStart = await flashes('retell start');        // timer starts on flash 1
+  if (S.cur !== tr || S.state !== 'retell') return;
+  tr.retellStart = tStart;
+  log('retell_start', {t: tStart});
+  runCountdown(tr);
+}
+// The countdown runs on the clock from retell_start, so it keeps the fixed retell time even if
+// the experimenter menu is opened: the menu stops the display updating, not the time running out.
+function runCountdown(tr){
+  const total = P.retellSec*1000;
+  const tick = now => {
+    if (S.cur !== tr || S.state !== 'retell') return;
+    const left = Math.max(0, total - (now - tr.retellStart));
+    $('clock').textContent = String(Math.ceil(left/1000));
+    $('barFill').style.width = (100*left/total).toFixed(2) + '%';
+    if (left <= 0){ finishRetell(now); return; }
+    requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+}
+function finishRetell(t, early){
+  const tr = S.cur; S.state = 'done';
+  log('retell_end', {t, detail: early ? 'ended early by experimenter' : ''});
+  $('done').textContent = TEXT.timesUp(); showOnly('done');
+  setTimeout(() => { if (S && S.cur === tr){ S.idx++; trialPreview(); } }, P.doneMs);
+}
+function endSession(){
+  if (!S) return;
+  stopMedia(); flashRun = null; setFlash(false); $('menu').classList.add('hidden');
+  S.cur = null; log('session_end'); S.state = 'ended'; releaseWakeLock();
+  message({title: 'Finished', body: TEXT.end()});
+  const trials = {};
+  for (const r of S.rows) if (r.trial !== ''){ const t = trials[r.trial] = trials[r.trial] || {label: r.label, kind: r.kind}; if (r.event === 'media_playing') t.play = true; if (r.event === 'retell_end') t.retell = true; if (r.event === 'trial_skipped') t.skipped = true; }
+  let tbl = '<tr><th>Trial</th><th>Film / story</th><th>Played</th><th>Retell</th></tr>';
+  for (const n of Object.keys(trials).sort((a,b) => a-b)){ const t = trials[n];
+    tbl += `<tr><td>${n}</td><td>${esc(t.label)}</td><td>${t.play ? 'yes' : 'no'}</td><td>${t.retell ? 'yes' : (t.skipped ? 'skipped' : 'no')}</td></tr>`; }
+  const card = document.createElement('div'); card.className = 'card'; card.style.textAlign = 'left'; card.style.marginTop = '24px';
+  card.innerHTML = `<h2>Experimenter · ${esc(S.meta.participant)} · session ${esc(S.meta.session)}</h2><table class="log">${tbl}</table><p class="sub" style="margin-top:12px">Data are also kept on this iPad until deleted from the setup screen.</p>`;
+  const btns = document.createElement('div'); btns.className = 'btns';
+  const snap = () => ({meta: S.meta, rows: S.rows});
+  const key = S.lsKey;
+  const b1 = document.createElement('button'); b1.className = 'btn primary'; b1.textContent = 'Save CSV…'; b1.onclick = () => exportCsv(snap(), key);
+  const b2 = document.createElement('button'); b2.className = 'btn'; b2.textContent = 'Download CSV'; b2.onclick = () => downloadCsv(snap(), key);
+  const b3 = document.createElement('button'); b3.className = 'btn'; b3.textContent = 'New participant';
+  b3.onclick = () => { S = null; $('pid').value = ''; $('notes').value = ''; showScreen('setup'); renderSaved(); updateSummary(); updateEnv(); };
+  btns.append(b1, b2, b3); card.appendChild(btns); $('msgExtra').appendChild(card);
+}
+
+/* ---------------- experimenter menu ---------------- */
+function openMenu(reason){
+  if (!S || !S.cur || !['media','retell'].includes(S.state)) return;
+  if (flashRun) return;                     // not during a sync flash sequence (keeps the flashes clean)
+  const tr = S.cur, inMedia = S.state === 'media';
+  if (inMedia && tr.el) tr.el.pause();
+  const prevState = S.state; S.state = 'menu';
+  log('menu_opened', {mt: tr.el ? tr.el.currentTime : null, detail: reason || ''});
+  $('menuInfo').innerHTML = `Trial ${tr.n} of ${S.order.length}: ${esc(tr.label)} (${inMedia ? 'playing, now paused' : 'retell'}).`;
+  const box = $('menuBtns'); box.innerHTML = '';
+  const add = (label, cls, fn) => { const b = document.createElement('button'); b.className = 'btn' + (cls ? ' ' + cls : ''); b.textContent = label; b.onclick = () => { $('menu').classList.add('hidden'); fn(); }; box.appendChild(b); };
+  const resume = () => {
+    S.state = prevState;
+    if (inMedia){ log('resumed', {mt: tr.el.currentTime}); tr.el.play().catch(() => {}); }
+    else { log('resumed'); runCountdown(tr); }
+  };
+  if (inMedia){
+    add('Resume', 'primary', resume);
+    add('Skip to the retell now', '', () => { S.state = 'media'; tr.ended = true; log('media_stopped_early', {mt: tr.el.currentTime}); startRetell(); });
+  } else {
+    add('Continue the countdown', 'primary', resume);
+    add('End the retell now', '', () => { finishRetell(performance.now(), true); });
+  }
+  add('Restart this trial', '', () => { log('trial_restarted'); stopMedia(); flashRun = null; setFlash(false); S.state = 'preview'; trialPreview(); });
+  add('End session and save data', 'danger', () => { if (confirm('End the session now? Data so far will be saved.')) endSession(); else resume(); });
+  $('menu').classList.remove('hidden');
+}
+
+/* ---------------- wake lock / full screen / layout check ---------------- */
+async function requestWakeLock(){ try { if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); } catch(e){ wakeLock = null; } }
+function releaseWakeLock(){ try { wakeLock && wakeLock.release(); } catch(e){} wakeLock = null; }
+function goFullscreen(){ const el = document.documentElement; try { (el.requestFullscreen || el.webkitRequestFullscreen).call(el); } catch(e){} }
+let previewMode = false;
+function layoutCheck(){
+  P = currentParams(); previewMode = true; showScreen('stage'); layout(); setFlash(true); showOnly('retell');
+  $('retellT1').textContent = 'Layout check'; $('retellT2').textContent = 'Both corner squares should be visible to the cameras. Tap anywhere to close.';
+  $('clock').textContent = String(P.retellSec); $('barFill').style.width = '100%';
+}
+
+/* ---------------- input ---------------- */
+let lpTimer = null;
+$('stage').addEventListener('pointerdown', e => {
+  e.preventDefault();
+  if (previewMode){ previewMode = false; setFlash(false); showScreen('setup'); updateEnv(); return; }
+  const r = $('stage').getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top, z = L.menu;
+  if (z && x >= z.x0 && x <= z.x1 && y >= z.y0 && y <= z.y1){ clearTimeout(lpTimer); lpTimer = setTimeout(() => { lpTimer = null; openMenu('long press'); }, 1000); }
+}, {passive:false});
+const cancelLp = () => { if (lpTimer){ clearTimeout(lpTimer); lpTimer = null; } };
+$('stage').addEventListener('pointerup', cancelLp); $('stage').addEventListener('pointercancel', cancelLp);
+$('stage').addEventListener('touchstart', e => e.preventDefault(), {passive:false});
+$('stage').addEventListener('touchmove', e => e.preventDefault(), {passive:false});
+document.addEventListener('gesturestart', e => e.preventDefault());
+document.addEventListener('keydown', e => { if (e.key === 'Escape'){ if (previewMode){ previewMode = false; setFlash(false); showScreen('setup'); return; } openMenu('keyboard'); } });
+document.addEventListener('visibilitychange', () => {
+  if (!S) return;
+  if (document.hidden){ log('app_hidden', {mt: S.cur && S.cur.el ? S.cur.el.currentTime : null}); if (S.state === 'media' || S.state === 'retell') openMenu('interrupted (screen locked or app switched)'); }
+  else { log('app_visible'); if (!wakeLock || wakeLock.released) requestWakeLock(); }
+});
+addEventListener('resize', () => { if (!$('stage').classList.contains('hidden')) layout(); updateEnv(); });
+$('pid').addEventListener('input', updateOrder);
+$('startBtn').onclick = startSession;
+$('previewBtn').onclick = layoutCheck;
+$('fsBtn').onclick = goFullscreen;
+$('resetDefaults').onclick = () => { URLP = {}; renderAdvanced(); updateSummary(); };
+
+/* ---------------- init ---------------- */
+(async function init(){
+  URLP = readUrlParams(); renderAdvanced();
+  try { if (navigator.storage && navigator.storage.persist) await navigator.storage.persist(); } catch(e){}
+  try { await loadStored(); } catch(e){ console.warn(e); }
+  renderSlots(); updateSummary(); updateEnv(); renderSaved(); measureRefresh();
+  window.__story = { get S(){ return S; }, get P(){ return P; }, media, csvText, seededOrder, ready: true };   // used by tests/
+})();
+</script>
+</body>
+</html>

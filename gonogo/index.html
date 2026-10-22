@@ -1,0 +1,900 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Go/No-Go">
+<meta name="theme-color" content="#000000">
+<link rel="apple-touch-icon" href="icon.png">
+<title>Go/No-Go Reach Task</title>
+<!--
+  Go/No-Go reach-and-tap task for iPad (Safari), NCC Lab, York University.
+  Structure follows the consensus stop-signal guide (Verbruggen et al., 2019, eLife 8:e46323)
+  and its STOP-IT / Inquisit implementations, adapted to go/no-go with a reach response:
+    - 25% no-go, 1 practice block of 32 trials, 4 test blocks of 72 trials (288 trials, 72 no-go)
+    - fixation period drawn at random (uniform, 500-2000 ms) on every trial so the onset can't be anticipated;
+      letter stays up until a tap or the end of the response window; next fixation a fixed time after each onset
+    - trial-by-trial feedback in practice only, mean RT / omissions / errors between blocks
+  Video synchronisation: white patches in the two far corners turn on at every stimulus onset;
+  a binary strip at the far edge identifies each trial in the video (printed number optional).
+  The task also logs touches as a backup (CSV export at the end).
+  Single self-contained file; no network access needed once loaded.
+-->
+<style>
+:root{
+  --bg:#000; --fg:#f2f2f2; --muted:#9a9a9a; --card:#141414; --line:#2a2a2a;
+  --accent:#5aa9ff; --accent-ink:#00172e; --warn:#ffd24d; --danger:#ff7070; --ok:#6fd38a;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);
+  font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif;
+  -webkit-text-size-adjust:100%;overscroll-behavior:none}
+body{position:fixed;inset:0;overflow:hidden;-webkit-user-select:none;user-select:none;
+  -webkit-touch-callout:none;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.hidden{display:none !important}
+.screen{position:absolute;inset:0}
+
+/* ---------- experimenter / message screens ---------- */
+.ui{overflow-y:auto;-webkit-overflow-scrolling:touch;touch-action:pan-y;
+  padding:max(20px,env(safe-area-inset-top)) 20px 60px}
+.wrap{max-width:780px;margin:0 auto}
+h1{font-size:26px;margin:10px 0 4px;font-weight:650;letter-spacing:-.01em}
+.sub{color:var(--muted);margin:0 0 18px;font-size:15px;line-height:1.4}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 18px 16px;margin:0 0 14px}
+.card h2{font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:2px 0 10px;font-weight:600}
+.row{display:flex;align-items:center;gap:12px;margin:9px 0;font-size:17px}
+.row > span{flex:0 0 200px;color:#ddd}
+.row small{color:var(--muted);font-size:13px}
+input,select{font:inherit;font-size:17px;color:var(--fg);background:#0b0b0b;border:1px solid #343434;
+  border-radius:10px;padding:9px 12px;flex:1;min-width:0;-webkit-user-select:text;user-select:text}
+input[type=checkbox]{flex:0 0 auto;width:24px;height:24px;accent-color:var(--accent)}
+input:focus,select:focus{outline:2px solid var(--accent);outline-offset:1px}
+.summary{font-size:16px;line-height:1.55;color:#ddd}
+.summary b{color:#fff}
+.badge{display:inline-block;font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;
+  padding:3px 8px;border-radius:6px;background:#3a2f00;color:var(--warn);margin-left:8px;vertical-align:middle}
+details summary{cursor:pointer;color:#ddd;font-size:16px;padding:4px 0}
+.btn{appearance:none;-webkit-appearance:none;border:0;border-radius:12px;padding:14px 22px;font:inherit;
+  font-size:18px;font-weight:600;background:#2b2b2b;color:var(--fg);cursor:pointer;touch-action:manipulation}
+.btn.primary{background:var(--accent);color:var(--accent-ink)}
+.btn.danger{background:#3a1515;color:#ffb3b3}
+.btn.small{font-size:15px;padding:9px 14px;border-radius:10px}
+.btn:disabled{opacity:.35}
+.btns{display:flex;flex-wrap:wrap;gap:12px;margin-top:10px}
+.err{color:var(--danger);font-size:15px;min-height:20px;margin-top:6px}
+table.stats{border-collapse:collapse;width:100%;font-size:15px;font-variant-numeric:tabular-nums}
+table.stats th,table.stats td{text-align:right;padding:6px 8px;border-bottom:1px solid var(--line)}
+table.stats th:first-child,table.stats td:first-child{text-align:left}
+table.stats th{color:var(--muted);font-weight:600}
+.sess{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:8px 0;border-bottom:1px solid var(--line);font-size:15px}
+.sess:last-child{border-bottom:0}
+.sess .grow{flex:1;min-width:180px}
+
+/* participant-facing message screen */
+#msg{display:flex;text-align:center;padding:40px 32px}
+#msg .box{max-width:820px;width:100%;margin:auto}
+#msg h1{font-size:34px;margin-bottom:18px}
+#msg .body{font-size:25px;line-height:1.45;color:#eee}
+#msg .body p{margin:0 0 16px}
+#msg .body ul{text-align:left;display:inline-block;margin:0 0 16px;padding-left:28px}
+#msg .body li{margin:0 0 12px}
+#msg .body .big{font-size:30px;font-weight:700}
+#msg .body .rules{display:inline-block;text-align:left;margin:6px 0 0}
+#msg .body .rule{font-size:30px;margin:0 0 14px}
+#msg .body .rule .kbd{margin-right:14px}
+#msg .body .small{font-size:21px;color:#bbb;margin-top:22px}
+#msg .note{font-size:16px;color:var(--muted);margin-top:18px}
+#msg .btns{justify-content:center;margin-top:26px}
+#msg .btn{font-size:22px;padding:18px 34px;min-width:200px}
+.kbd{display:inline-block;font-weight:800;font-size:1.15em;border:2px solid #777;border-radius:8px;padding:0 10px;margin:0 3px}
+
+/* ---------- task stage ---------- */
+#stage{background:#000;touch-action:none;overflow:hidden}
+#stage .el{position:absolute}
+#target{border-radius:50%;border:3px solid #5c5c5c}
+#fix{left:50%;top:50%;transform:translate(-50%,-50%)}
+#fix i{position:absolute;background:#fff;left:50%;top:50%;transform:translate(-50%,-50%)}
+#letter{left:0;right:0;top:50%;transform:translateY(-50%);text-align:center;color:#fff;font-weight:800;
+  font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;line-height:1}
+#letter.count{color:#8c8c8c;font-weight:600}
+.flash{background:#000}
+.flash.on{background:#fff}
+#code{display:flex}
+#code i{display:block;background:#000;flex:0 0 auto}
+#code i.on{background:#8a8a8a}
+#tnum{color:#808080;text-align:center;font-variant-numeric:tabular-nums;font-weight:600;line-height:1}
+#fb{left:0;right:0;text-align:center;color:var(--warn);font-weight:700}
+#ruler{background:#fff;height:6px}
+#rulerLbl{color:#ddd;text-align:center;left:0;right:0;font-size:18px}
+#previewLbl{left:0;right:0;bottom:24px;text-align:center;color:#aaa;font-size:18px}
+
+/* pause overlay */
+#pause{position:absolute;inset:0;background:rgba(0,0,0,.92);display:flex;align-items:center;justify-content:center;z-index:50;touch-action:manipulation}
+#pause .card{max-width:560px;width:90%;text-align:center;padding:26px}
+#pause .btns{justify-content:center;flex-direction:column}
+</style>
+</head>
+<body>
+
+<!-- ================= SETUP (experimenter) ================= -->
+<div id="setup" class="screen ui">
+ <div class="wrap">
+  <h1>Go/No-Go reach task</h1>
+  <p class="sub">NCC Lab · ATHENA ADHD study. Place the iPad flat with the bottom of the screen toward the participant, and lock rotation before starting.</p>
+
+  <div class="card">
+   <h2>Participant</h2>
+   <label class="row"><span>Participant ID</span><input id="pid" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="e.g. P001"></label>
+   <label class="row"><span>Hand used</span>
+     <select id="hand"><option value="right">Right</option><option value="left">Left</option></select></label>
+   <label class="row"><span>Notes (optional)</span><input id="notes" autocomplete="off" placeholder="e.g. medication taken 9:30"></label>
+   <div class="err" id="setupErr"></div>
+  </div>
+
+  <div class="card">
+   <h2>Design <span id="nonDefault" class="badge hidden">non-default settings</span></h2>
+   <div class="summary" id="designSummary"></div>
+   <details style="margin-top:10px"><summary>Advanced settings</summary>
+     <div id="advanced"></div>
+     <div class="btns"><button class="btn small" id="resetDefaults">Reset to defaults</button></div>
+   </details>
+  </div>
+
+  <div class="card">
+   <h2>Checks</h2>
+   <div class="summary" id="envSummary"></div>
+   <div class="btns">
+     <button class="btn" id="previewBtn">Check layout &amp; size</button>
+     <button class="btn" id="fsBtn">Full screen</button>
+   </div>
+  </div>
+
+  <div class="card hidden" id="savedCard">
+   <h2>Saved sessions on this iPad</h2>
+   <div id="savedList"></div>
+  </div>
+
+  <div class="btns" style="margin-top:6px">
+    <button class="btn primary" id="startBtn" style="font-size:20px;padding:16px 40px">Start session</button>
+  </div>
+  <p class="sub" style="margin-top:22px">During the task: press and hold the grey code strip at the top centre of the screen for 1 s to pause (or press Esc on a keyboard). On a laptop, the space bar acts as a tap on the circle.</p>
+ </div>
+</div>
+
+<!-- ================= MESSAGES (participant-facing) ================= -->
+<div id="msg" class="screen ui hidden">
+  <div class="box">
+    <h1 id="msgTitle"></h1>
+    <div class="body" id="msgBody"></div>
+    <div class="btns" id="msgBtns"></div>
+    <div class="note" id="msgNote"></div>
+    <div id="msgExtra"></div>
+  </div>
+</div>
+
+<!-- ================= TASK STAGE ================= -->
+<div id="stage" class="screen hidden">
+  <div class="el flash" id="flashL"></div>
+  <div class="el flash" id="flashR"></div>
+  <div class="el" id="code"></div>
+  <div class="el" id="tnum"></div>
+  <div class="el" id="target">
+    <div class="el hidden" id="fix"><i id="fixH"></i><i id="fixV"></i></div>
+    <div class="el hidden" id="letter"></div>
+  </div>
+  <div class="el hidden" id="fb"></div>
+  <div class="el hidden" id="ruler"></div>
+  <div class="el hidden" id="rulerLbl">This white bar should measure 10 cm. If not, change "Screen scale" in Advanced settings.</div>
+  <div class="el hidden" id="previewLbl">Layout check · tap anywhere to close</div>
+</div>
+
+<!-- ================= PAUSE ================= -->
+<div id="pause" class="hidden">
+  <div class="card">
+    <h2 style="font-size:15px">Paused</h2>
+    <p class="summary" id="pauseInfo"></p>
+    <div class="btns">
+      <button class="btn primary" id="resumeBtn">Resume (re-runs the interrupted trial)</button>
+      <button class="btn" id="restartBtn">Restart this block</button>
+      <button class="btn danger" id="endBtn">End session and save data</button>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+/* =====================================================================
+   PARAMETERS
+   Defaults follow Verbruggen et al. (2019) / STOP-IT where they apply,
+   with the response window lengthened for a reach and a randomised fixation period
+   (the start position isn't tracked, so the onset must not be predictable).
+   Any parameter can be overridden with a URL query, e.g. ?postMs=1750&blocks=3
+   ===================================================================== */
+const VERSION = '1.2.0';
+const DEFAULTS = {
+  goLetter: 'X',          // go stimulus
+  nogoLetter: 'A',        // no-go stimulus
+  pNogo: 0.25,            // proportion of no-go trials (consensus guide: 25%)
+  practiceTrials: 32,     // STOP-IT / Inquisit: 1 practice block of 32
+  blocks: 4,              // Inquisit consensus version uses 3; one more for extra trials
+  trialsPerBlock: 72,     // 4 x 72 = 288 trials, 72 no-go
+  fixMinMs: 500,          // fixation period (foreperiod), drawn at random on every trial
+  fixMaxMs: 2000,         //   between fixMinMs and fixMaxMs
+  fixDist: 'uniform',     //   'uniform', or 'exponential' (flatter hazard: onset harder to anticipate late in the range)
+  fixMeanMs: 500,         //   exponential only: mean of the delay added to fixMinMs (truncated at fixMaxMs)
+  maxRtMs: 1500,          // response window after onset (STOP-IT 1250 for key press; +250 for the reach)
+  postMs: 2000,           // letter onset to the next fixation (response window + time to return to the start mark)
+  syncFlashMs: 150,       // corner patches stay white this long after each onset
+  practiceFeedback: true, // trial-by-trial messages in practice only
+  feedbackMs: 750,        // STOP-IT practice feedback duration
+  blockFeedback: true,    // mean RT, omissions and errors between blocks
+  breakSec: 15,           // STOP-IT between-block break
+  countdownSec: 3,        // countdown before each block (time to put the hand on the start mark)
+  startFlashes: 3,        // block-start sync: N flashes of both patches
+  leadMs: 1000,           // blank time after the block-start flashes
+  pxPerCm: 52,            // CSS px per cm (most iPads: 52; iPad mini: 64)
+  targetCm: 7,            // circle diameter
+  letterCm: 4,            // letter height
+  patchCm: 3,             // sync patch size
+  showCode: true,         // binary trial code at the far edge
+  codeBits: 9,            // trial numbers 1..511
+  showTrialNum: false,    // printed trial number at the far edge
+  seed: ''                // trial-order seed; blank = participant ID
+};
+const PARAM_META = [
+  ['goLetter','Go letter','text'], ['nogoLetter','No-go letter','text'],
+  ['pNogo','No-go proportion','num',0.05,0.5,0.01],
+  ['practiceTrials','Practice trials','int',0,200,1],
+  ['blocks','Test blocks','int',1,10,1], ['trialsPerBlock','Trials per block','int',4,400,1],
+  ['fixMinMs','Fixation, shortest (ms)','int',0,5000,50], ['fixMaxMs','Fixation, longest (ms)','int',0,8000,50],
+  ['fixDist','Fixation distribution','select',['uniform','exponential']],
+  ['fixMeanMs','Exponential mean (ms, exponential only)','int',1,5000,50],
+  ['maxRtMs','Response window (ms)','int',300,5000,50],
+  ['postMs','Letter onset to next fixation (ms)','int',500,8000,50], ['syncFlashMs','Corner patch on-time (ms)','int',50,1000,10],
+  ['practiceFeedback','Feedback in practice','bool'], ['feedbackMs','Practice feedback duration (ms)','int',200,3000,50],
+  ['blockFeedback','Feedback between blocks','bool'], ['breakSec','Break between blocks (s)','int',0,300,1],
+  ['countdownSec','Countdown before each block (s)','int',0,10,1], ['startFlashes','Block-start flashes','int',0,10,1],
+  ['leadMs','Pause after block-start flashes (ms)','int',0,5000,50],
+  ['pxPerCm','Screen scale (px per cm)','num',20,120,0.5], ['targetCm','Circle diameter (cm)','num',2,15,0.5],
+  ['letterCm','Letter height (cm)','num',1,10,0.5], ['patchCm','Corner patch size (cm)','num',1,6,0.5],
+  ['showCode','Binary trial code','bool'], ['codeBits','Binary code bits','int',4,12,1],
+  ['showTrialNum','Printed trial number','bool'], ['seed','Trial-order seed (blank = participant ID)','text']
+];
+
+/* participant-facing text (edit freely) */
+const TEXT = {
+  instructions: () => `
+     <p>Keep your finger on the start mark.</p>
+     <div class="rules"><p class="rule"><span class="kbd">${P.goLetter}</span> tap the circle as fast as you can</p>
+     <p class="rule"><span class="kbd">${P.nogoLetter}</span> don't move</p></div>
+     <p class="small">Go back to the mark after each tap. Don't wait to see if an ${P.nogoLetter} is coming.</p>`,
+  reminder: () => `Tap ${P.goLetter} fast. Don't wait for ${P.nogoLetter}.`,
+  fbOmission: () => 'Too slow',
+  fbCommission: () => `Don't move for ${P.nogoLetter}`,
+  fbPremature: () => 'Too early',
+  end: () => `<p class="big">All done. Thank you!</p>`
+};
+
+/* ===================================================================== */
+const $ = id => document.getElementById(id);
+let P = {...DEFAULTS};
+let URLP = {};
+let S = null;        // session
+let B = null;        // running block
+let paused = false, rafId = 0, lastFrame = 0, lastDelta = 0;
+let previewMode = false, wakeLock = null;
+const deltas = [];
+const LS_PREFIX = 'gngReach:';
+
+/* ---------- utilities ---------- */
+function coerce(key, v){
+  const d = DEFAULTS[key];
+  if (typeof d === 'boolean') return v === true || v === 'true' || v === '1' || v === 1 || v === 'on';
+  if (typeof d === 'number') { const n = Number(v); return Number.isFinite(n) ? n : d; }
+  return String(v);
+}
+function readUrlParams(){
+  const q = new URLSearchParams(location.search); const o = {};
+  for (const [k,v] of q) if (k in DEFAULTS) o[k] = coerce(k, v);
+  return o;
+}
+function lsGet(k){ try { return localStorage.getItem(k); } catch(e){ return null; } }
+function lsSet(k,v){ try { localStorage.setItem(k,v); return true; } catch(e){ return false; } }
+function lsDel(k){ try { localStorage.removeItem(k); } catch(e){} }
+function lsKeys(){ try { return Object.keys(localStorage).filter(k => k.startsWith(LS_PREFIX)); } catch(e){ return []; } }
+function pad(n,w){ return String(n).padStart(w,'0'); }
+function stamp(d){ return `${d.getFullYear()}${pad(d.getMonth()+1,2)}${pad(d.getDate(),2)}-${pad(d.getHours(),2)}${pad(d.getMinutes(),2)}${pad(d.getSeconds(),2)}`; }
+function esc(s){ return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function r1(x){ return x == null ? '' : Math.round(x*10)/10; }
+function mean(a){ return a.length ? a.reduce((s,x)=>s+x,0)/a.length : NaN; }
+function sd(a){ if (a.length < 2) return NaN; const m = mean(a); return Math.sqrt(a.reduce((s,x)=>s+(x-m)**2,0)/(a.length-1)); }
+function median(a){ if(!a.length) return NaN; const b=[...a].sort((x,y)=>x-y); const m=b.length>>1; return b.length%2?b[m]:(b[m-1]+b[m])/2; }
+
+/* seeded RNG: cyrb53 hash -> mulberry32 */
+function hashStr(str){ let h1=0xdeadbeef^0, h2=0x41c6ce57^0;
+  for (let i=0;i<str.length;i++){ const ch=str.charCodeAt(i); h1=Math.imul(h1^ch,2654435761); h2=Math.imul(h2^ch,1597334677); }
+  h1=Math.imul(h1^(h1>>>16),2246822507)^Math.imul(h2^(h2>>>13),3266489909);
+  h2=Math.imul(h2^(h2>>>16),2246822507)^Math.imul(h1^(h1>>>13),3266489909);
+  return (h1>>>0) ^ (h2>>>0); }
+function mulberry32(a){ return function(){ a|=0; a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+function shuffle(arr, rng){ for (let i=arr.length-1;i>0;i--){ const j=Math.floor(rng()*(i+1)); [arr[i],arr[j]]=[arr[j],arr[i]]; } return arr; }
+function nNogoFor(n){ return Math.round(n*P.pNogo); }
+function fixRange(p){ const lo = Math.max(0, p.fixMinMs), hi = Math.max(lo, p.fixMaxMs); return [lo, hi]; }
+function isUniform(p){ return String(p.fixDist).trim().toLowerCase().startsWith('u'); }
+function drawForeperiod(rng){
+  const [lo, hi] = fixRange(P), u = rng();
+  if (hi <= lo) return lo;
+  if (isUniform(P)) return Math.round(lo + u*(hi - lo));
+  const m = Math.max(1, P.fixMeanMs), span = hi - lo;           // truncated exponential (inverse CDF)
+  return Math.round(lo - m*Math.log(1 - u*(1 - Math.exp(-span/m))));
+}
+function meanForeperiod(p){
+  const [lo, hi] = fixRange(p); if (hi <= lo) return lo;
+  if (isUniform(p)) return (lo + hi)/2;
+  const m = Math.max(1, p.fixMeanMs), span = hi - lo, e = Math.exp(-span/m);
+  return lo + m - span*e/(1 - e);
+}
+function makeList(n, rng){
+  const k = nNogoFor(n), types = [];
+  for (let i=0;i<n;i++) types.push(i < k ? 'nogo' : 'go');
+  shuffle(types, rng);         // full randomisation within block, as in STOP-IT
+  return types.map(type => ({type, fp: drawForeperiod(rng)}));
+}
+
+/* event timestamps: use event.timeStamp when it shares the performance.now() clock */
+function evTime(e){
+  const now = performance.now(), t = e && e.timeStamp;
+  return (t > 0 && t <= now + 5 && now - t < 1000) ? t : now;
+}
+
+/* ---------- design summary on setup ---------- */
+function currentParams(){
+  const p = {...DEFAULTS, ...URLP};
+  document.querySelectorAll('#advanced [data-key]').forEach(el => {
+    const k = el.dataset.key;
+    p[k] = el.type === 'checkbox' ? el.checked : coerce(k, el.value);
+  });
+  return p;
+}
+function renderAdvanced(){
+  const box = $('advanced'); box.innerHTML = '';
+  const base = {...DEFAULTS, ...URLP};
+  for (const [k,label,type,min,max,step] of PARAM_META){
+    const row = document.createElement('label'); row.className = 'row';
+    const sp = document.createElement('span'); sp.textContent = label; row.appendChild(sp);
+    const inp = document.createElement(type === 'select' ? 'select' : 'input'); inp.dataset.key = k;
+    if (type === 'select'){ for (const o of min){ const op = document.createElement('option'); op.value = o; op.textContent = o; inp.appendChild(op); } inp.value = base[k]; }
+    else if (type === 'bool'){ inp.type = 'checkbox'; inp.checked = !!base[k]; }
+    else if (type === 'text'){ inp.type = 'text'; inp.value = base[k]; inp.autocapitalize='off'; inp.spellcheck=false; }
+    else { inp.type = 'number'; inp.inputMode = 'decimal'; inp.min = min; inp.max = max; inp.step = step; inp.value = base[k]; }
+    inp.addEventListener('input', updateSummary); inp.addEventListener('change', updateSummary);
+    row.appendChild(inp); box.appendChild(row);
+  }
+}
+function estDurationSec(p){
+  const blockOverhead = p.countdownSec + p.startFlashes*2*p.syncFlashMs/1000 + p.leadMs/1000;
+  const trial = (meanForeperiod(p) + Math.max(p.postMs, p.maxRtMs))/1000;
+  const prac = p.practiceTrials ? p.practiceTrials*trial*1.08 + blockOverhead : 0;
+  const test = p.blocks*(p.trialsPerBlock*trial + blockOverhead) + (p.blocks-1)*p.breakSec;
+  return {prac, test};
+}
+function updateSummary(){
+  P = currentParams();
+  const n = P.trialsPerBlock, k = nNogoFor(n), tot = n*P.blocks, ktot = k*P.blocks;
+  const pk = nNogoFor(P.practiceTrials);
+  const d = estDurationSec(P);
+  const nonDef = Object.keys(DEFAULTS).some(key => String(P[key]) !== String(DEFAULTS[key]));
+  $('nonDefault').classList.toggle('hidden', !nonDef);
+  const exact = Math.abs(n*P.pNogo - k) > 1e-9 ? ` <span style="color:var(--warn)">(rounded from ${(n*P.pNogo).toFixed(2)})</span>` : '';
+  $('designSummary').innerHTML =
+    `Go = <b>${esc(P.goLetter)}</b>, no-go = <b>${esc(P.nogoLetter)}</b>, ${Math.round(P.pNogo*100)}% no-go.<br>` +
+    `Practice: <b>${P.practiceTrials}</b> trials (${pk} no-go)` + (P.practiceFeedback ? ', with feedback.' : '.') + `<br>` +
+    `Test: <b>${P.blocks} × ${n}</b> = ${tot} trials (${k} no-go per block${exact}, ${ktot} in total).<br>` +
+    `Each trial: fixation for a random ${fixRange(P)[0]}–${fixRange(P)[1]} ms (${isUniform(P) ? 'uniform' : 'exponential'}, mean ${Math.round(meanForeperiod(P))} ms) → letter until tap or ${P.maxRtMs} ms → next fixation ${P.postMs} ms after the letter appeared.<br>` +
+    `Estimated time: practice ≈ ${(d.prac/60).toFixed(1)} min, test ≈ ${(d.test/60).toFixed(1)} min (plus instructions).`;
+}
+function updateEnv(){
+  const standalone = window.navigator.standalone === true || matchMedia('(display-mode: standalone)').matches;
+  const fsOk = !!(document.documentElement.requestFullscreen || document.documentElement.webkitRequestFullscreen);
+  const W = innerWidth, H = innerHeight;
+  const est = refreshEstimate();
+  $('envSummary').innerHTML =
+    `Screen: ${W} × ${H} CSS px (${(W/P.pxPerCm).toFixed(1)} × ${(H/P.pxPerCm).toFixed(1)} cm at ${P.pxPerCm} px/cm), ` +
+    `${W >= H ? 'landscape' : 'portrait'}, pixel ratio ${window.devicePixelRatio || 1}.<br>` +
+    `Mode: ${standalone ? '<b>home-screen app</b> (no browser bars)' : 'browser tab' + (fsOk ? ' (full screen available)' : '')}.` +
+    (est ? ` Display refresh ≈ ${est} Hz.` : '') + `<br>` +
+    `Wake lock: ${'wakeLock' in navigator ? 'supported (screen stays on during the task)' : '<span style="color:var(--warn)">not supported, set Auto-Lock to Never</span>'}.`;
+}
+let refreshHz = null;
+function refreshEstimate(){ return refreshHz; }
+function measureRefresh(){
+  const ts = []; function f(t){ ts.push(t); if (ts.length < 40) requestAnimationFrame(f);
+    else { const d = []; for (let i=1;i<ts.length;i++) d.push(ts[i]-ts[i-1]); const m = median(d); refreshHz = m > 0 ? Math.round(1000/m) : null; updateEnv(); } }
+  requestAnimationFrame(f);
+}
+
+/* ---------- saved sessions ---------- */
+function renderSaved(){
+  const keys = lsKeys().filter(k => k.startsWith(LS_PREFIX+'session:'));
+  const list = $('savedList'); list.innerHTML = '';
+  $('savedCard').classList.toggle('hidden', keys.length === 0);
+  keys.sort().reverse().forEach(k => {
+    let d; try { d = JSON.parse(lsGet(k)); } catch(e){ return; }
+    if (!d || !d.meta) return;
+    const div = document.createElement('div'); div.className = 'sess';
+    const n = (d.rows||[]).filter(r => r.type !== 'sync').length;
+    div.innerHTML = `<div class="grow"><b>${esc(d.meta.participant)}</b> · ${esc(d.meta.started_local)} · ${n} trials${d.exported ? ' · <span style="color:var(--ok)">exported</span>' : ' · <span style="color:var(--warn)">not exported</span>'}</div>`;
+    const b1 = document.createElement('button'); b1.className='btn small'; b1.textContent='Save CSV';
+    b1.onclick = () => exportCsv(d, k);
+    const b2 = document.createElement('button'); b2.className='btn small danger'; b2.textContent='Delete';
+    b2.onclick = () => { if (confirm('Delete this saved session from the iPad?')) { lsDel(k); renderSaved(); } };
+    div.appendChild(b1); div.appendChild(b2); list.appendChild(div);
+  });
+}
+
+/* ---------- layout (all sizes in cm via pxPerCm) ---------- */
+const L = {};
+function layout(){
+  const W = innerWidth, H = innerHeight, k = P.pxPerCm;
+  const patch = P.patchCm*k;
+  const set = (el, o) => { for (const p in o) el.style[p] = (typeof o[p] === 'number') ? o[p] + 'px' : o[p]; };
+  set($('flashL'), {left:0, top:0, width:patch, height:patch});
+  set($('flashR'), {right:0, top:0, width:patch, height:patch, left:'auto'});
+  // binary code strip between the patches, along the far (top) edge
+  const nCells = P.codeBits + 2;
+  const avail = W - 2*patch - 1.0*k;
+  const cell = Math.max(6, Math.min(0.9*k, avail/(nCells*1.35)));
+  const gap = cell*0.35;
+  const code = $('code'); code.innerHTML = '';
+  for (let i=0;i<nCells;i++){ const c = document.createElement('i'); c.style.width = cell+'px'; c.style.height = cell+'px'; if (i) c.style.marginLeft = gap+'px'; code.appendChild(c); }
+  const codeW = nCells*cell + (nCells-1)*gap;
+  const codeTop = 0.3*k;
+  set(code, {left:(W-codeW)/2, top:codeTop, display: P.showCode ? 'flex' : 'none'});
+  const numFont = Math.min(0.9*k, 40);
+  const numTop = P.showCode ? codeTop + cell + 0.25*k : codeTop;
+  set($('tnum'), {left:(W-codeW)/2 - 0.5*k, width:codeW + k, top:numTop, fontSize:numFont, height:numFont*1.1, visibility: P.showTrialNum ? 'visible' : 'hidden'});
+  // pause zone = code strip + trial number area
+  L.pause = {x0:(W-codeW)/2 - k, x1:(W+codeW)/2 + k, y0:0, y1:numTop + numFont*1.3 + 0.3*k};
+  // target circle
+  const D = P.targetCm*k, R = D/2;
+  const topBand = Math.max(patch, L.pause.y1) + 0.6*k;
+  let cy = Math.max(H/2, topBand + R);
+  cy = Math.min(cy, H - R - 2.2*k);
+  L.cx = W/2; L.cy = cy; L.R = R;
+  set($('target'), {left:L.cx - R, top:cy - R, width:D, height:D});
+  // fixation cross 1 cm, letter by cap height
+  const arm = 1.0*k, thick = Math.max(3, 0.12*k);
+  set($('fix'), {width:arm, height:arm});
+  set($('fixH'), {width:arm, height:thick}); set($('fixV'), {width:thick, height:arm});
+  $('letter').style.fontSize = (P.letterCm*k/0.72) + 'px';
+  set($('fb'), {top:cy + R + 0.6*k, fontSize:Math.min(0.8*k, 44)});
+  set($('ruler'), {left:(W-10*k)/2, width:10*k, top:cy + R + 0.6*k});
+  set($('rulerLbl'), {top:cy + R + 1.0*k});
+}
+
+/* ---------- stage drawing ---------- */
+function setFlash(on){ $('flashL').classList.toggle('on', on); $('flashR').classList.toggle('on', on); }
+function setCode(n){
+  const cells = $('code').children; const nb = P.codeBits;
+  if (n == null){ for (const c of cells) c.classList.remove('on'); return; }
+  cells[0].classList.add('on'); cells[cells.length-1].classList.add('on');   // anchors
+  for (let b=0;b<nb;b++){ const bit = (n >> (nb-1-b)) & 1; cells[b+1].classList.toggle('on', !!bit); }  // MSB first
+}
+function setTnum(t){ $('tnum').textContent = t == null ? '' : t; }
+function showFix(on){ $('fix').classList.toggle('hidden', !on); }
+function showLetter(ch, cls){ const el = $('letter'); el.textContent = ch; el.className = 'el' + (cls ? ' ' + cls : ''); }
+function hideLetter(){ $('letter').classList.add('hidden'); }
+function showFb(text){ const el = $('fb'); el.textContent = text; el.classList.remove('hidden'); }
+function hideFb(){ $('fb').classList.add('hidden'); }
+function clearStage(){ setFlash(false); setCode(null); setTnum(null); showFix(false); hideLetter(); hideFb();
+  $('ruler').classList.add('hidden'); $('rulerLbl').classList.add('hidden'); $('previewLbl').classList.add('hidden'); }
+
+/* ---------- screens ---------- */
+function showScreen(id){ for (const s of ['setup','msg','stage']) $(s).classList.toggle('hidden', s !== id); }
+function message({title='', body='', buttons=[], note=''}){
+  showScreen('msg');
+  $('msgTitle').textContent = title; $('msgBody').innerHTML = body; $('msgNote').innerHTML = note; $('msgExtra').innerHTML = '';
+  const box = $('msgBtns'); box.innerHTML = '';
+  buttons.forEach(b => {
+    const el = document.createElement('button'); el.className = 'btn' + (b.primary ? ' primary' : '');
+    el.textContent = b.label;
+    let fired = false;
+    el.addEventListener('click', () => { if (fired || el.disabled) return; fired = true; b.onClick(); });
+    if (b.delaySec){
+      el.disabled = true; let left = b.delaySec; const base = b.label;
+      el.textContent = `${base} (${left})`;
+      const iv = setInterval(() => { left--; if (left <= 0){ clearInterval(iv); el.disabled = false; el.textContent = base; } else el.textContent = `${base} (${left})`; }, 1000);
+    }
+    box.appendChild(el);
+  });
+  $('msg').scrollTop = 0;
+}
+
+/* ---------- session flow ---------- */
+function startSession(){
+  const id = $('pid').value.trim();
+  if (!id){ $('setupErr').textContent = 'Enter a participant ID first.'; $('pid').focus(); return; }
+  if (!/^[A-Za-z0-9_\-]+$/.test(id)){ $('setupErr').textContent = 'Use letters, numbers, - or _ only.'; return; }
+  $('setupErr').textContent = '';
+  P = currentParams();
+  const now = new Date();
+  const seedStr = (P.seed && P.seed.trim()) ? P.seed.trim() : id;
+  S = {
+    meta: {
+      task: 'gonogo-reach', version: VERSION, participant: id, hand: $('hand').value, notes: $('notes').value.trim(),
+      session: stamp(now), started_local: now.toLocaleString(), started_iso: now.toISOString(),
+      seed: seedStr, params: {...P},
+      device: {ua: navigator.userAgent, w: innerWidth, h: innerHeight, dpr: window.devicePixelRatio || 1,
+               standalone: window.navigator.standalone === true, refreshHz: refreshHz}
+    },
+    rows: [], code: 0, run: 0, practiceReps: 0, blockStats: []
+  };
+  S.rng = mulberry32(hashStr('gng|' + seedStr));
+  // pre-generate test block lists so the order is reproducible from the seed alone
+  S.testLists = []; for (let b=0;b<P.blocks;b++) S.testLists.push(makeList(P.trialsPerBlock, S.rng));
+  S.pracRng = mulberry32(hashStr('gng-practice|' + seedStr));
+  S.lsKey = LS_PREFIX + 'session:' + S.meta.session + ':' + id;
+  autosave();
+  requestWakeLock();
+  layout();
+  instructions();
+}
+function instructions(){
+  const hasPractice = P.practiceTrials > 0;
+  message({title:'Instructions', body: TEXT.instructions(),
+    buttons:[{label: hasPractice ? 'Start practice' : 'Start', primary:true, onClick: hasPractice ? startPractice : () => startTestBlock(1)}]});
+}
+function startPractice(){
+  S.practiceReps++;
+  runBlock({kind:'practice', blockNum:0, label:'P'+S.practiceReps, trials: makeList(P.practiceTrials, S.pracRng), onDone: practiceDone});
+}
+function startTestBlock(k){
+  runBlock({kind:'test', blockNum:k, label:'B'+k, trials: S.testLists[k-1].slice(), onDone: st => blockDone(k, st)});
+}
+function practiceDone(st){
+  const body = `<p>Practice done. From now on there are no messages after each letter.</p>` + feedbackHtml(st);
+  message({title:'Practice', body,
+    note:'Experimenter: repeat the practice if the instructions were not followed.',
+    buttons:[{label:'Repeat practice', onClick: startPractice},
+             {label: P.blocks > 1 ? `Start part 1 of ${P.blocks}` : 'Start task', primary:true, onClick: () => startTestBlock(1)}]});
+}
+function feedbackHtml(st){
+  const rt = Number.isFinite(st.meanRt) ? Math.round(st.meanRt) + ' ms' : 'n/a';
+  return `<p>Average tap time: <b>${rt}</b><br>
+          Missed ${esc(P.goLetter)}'s: <b>${st.omissions}</b> <span style="color:var(--muted)">(aim for 0)</span><br>
+          ${esc(P.nogoLetter)}'s tapped: <b>${st.commissions}</b> of ${st.nogoN}</p>`;
+}
+function blockDone(k, st){
+  S.blockStats.push(st);
+  if (k >= P.blocks){ endSession(); return; }
+  const body = `<p>Part ${k} of ${P.blocks} done.</p>` +
+    (P.blockFeedback ? feedbackHtml(st) + `<p>${esc(TEXT.reminder())}</p>` : '');
+  message({title:'Break', body, buttons:[{label:`Start part ${k+1}`, primary:true, delaySec:P.breakSec, onClick: () => startTestBlock(k+1)}]});
+}
+function endSession(){
+  if (B){ cancelAnimationFrame(rafId); B = null; }
+  paused = false; $('pause').classList.add('hidden');
+  releaseWakeLock();
+  autosave();
+  showScreen('msg');
+  const all = S.rows.filter(r => r.type !== 'sync');
+  const byBlock = {};
+  all.forEach(r => { (byBlock[r.block_label] = byBlock[r.block_label] || []).push(r); });
+  let tbl = statsHeader();
+  for (const lbl of Object.keys(byBlock)) tbl += statsRow(computeStats(byBlock[lbl], lbl));
+  const test = all.filter(r => r.block > 0);
+  if (test.length) tbl += statsRow(computeStats(test, 'All test'));
+  message({title:'Finished', body: TEXT.end(), buttons:[], note:''});
+  const box = $('msgExtra');
+  const card = document.createElement('div'); card.className = 'card'; card.style.textAlign = 'left'; card.style.marginTop = '24px'; card.style.width = '100%';
+  card.innerHTML = `<h2>Experimenter · ${esc(S.meta.participant)} · session ${esc(S.meta.session)}</h2><table class="stats">${tbl}</table><p class="sub" style="margin-top:12px">Data are also kept on this iPad until deleted from the setup screen.</p>`;
+  const btns = document.createElement('div'); btns.className = 'btns';
+  const b1 = document.createElement('button'); b1.className = 'btn primary'; b1.textContent = 'Save CSV…';
+  b1.onclick = () => exportCsv(sessionSnapshot(), S.lsKey);
+  const b2 = document.createElement('button'); b2.className = 'btn'; b2.textContent = 'Download CSV';
+  b2.onclick = () => downloadCsv(sessionSnapshot(), S.lsKey);
+  const b3 = document.createElement('button'); b3.className = 'btn'; b3.textContent = 'New participant';
+  b3.onclick = () => { S = null; $('pid').value = ''; $('notes').value = ''; showScreen('setup'); renderSaved(); updateEnv(); };
+  btns.append(b1, b2, b3); card.appendChild(btns);
+  box.appendChild(card);
+}
+
+/* ---------- block engine ---------- */
+function runBlock(cfg){
+  S.run++;
+  B = {...cfg, run: S.run, idx: 0, phase: 'countdown', phaseStart: null, anchor: null, cur: null, rows: []};
+  paused = false;
+  layout(); clearStage(); showScreen('stage');
+  lastFrame = 0; deltas.length = 0;
+  rafId = requestAnimationFrame(frame);
+}
+function frame(now){
+  if (!B || paused) return;
+  if (lastFrame){ lastDelta = now - lastFrame; deltas.push(lastDelta); if (deltas.length > 600) deltas.shift(); }
+  lastFrame = now;
+  if (B.phaseStart === null) B.phaseStart = now;
+  step(now);
+  if (B && !paused) rafId = requestAnimationFrame(frame);
+}
+function step(now){
+  const b = B;
+  switch (b.phase){
+    case 'countdown': {
+      const n = P.countdownSec - Math.floor((now - b.phaseStart)/1000);
+      if (n <= 0){ hideLetter(); b.phase = 'sync'; b.phaseStart = now; b.syncIdx = -1; step(now); }
+      else showLetter(String(n), 'count');
+      break;
+    }
+    case 'sync': {
+      const per = 2*P.syncFlashMs, el = now - b.phaseStart, i = Math.floor(el/per);
+      if (i >= P.startFlashes){ setFlash(false); b.phase = 'lead'; b.anchor = now + P.leadMs; break; }
+      const on = (el % per) < P.syncFlashMs;
+      if (on && b.syncIdx !== i){ b.syncIdx = i; setFlash(true); logSync(now, i); }
+      else if (!on) setFlash(false);
+      break;
+    }
+    case 'lead':
+      if (now >= b.anchor) beginTrial(now, b.anchor);
+      break;
+    case 'trial':
+      stepTrial(now);
+      break;
+  }
+}
+function beginTrial(now, sched){
+  const b = B, tr = b.trials[b.idx], type = tr.type;
+  S.code++;
+  const maxCode = (1 << P.codeBits) - 1;
+  const code = ((S.code - 1) % maxCode) + 1;
+  b.cur = {type, letter: type === 'go' ? P.goLetter : P.nogoLetter, code,
+    fp: tr.fp, fixSched: sched, fix: now, onsetSched: sched + tr.fp, onset: null, frameMs: null,
+    resp: false, rt: null, x: null, y: null, inT: null,
+    prematureN: 0, prematureFirst: null, extraN: 0, lateRt: null,
+    flashOn: false, letterOn: false, closed: false, fbUntil: null, fbShown: false, fbEnd: null, aborted: 0};
+  hideLetter(); showFix(tr.fp > 0); setCode(code); setTnum(code);
+  b.phase = 'trial';
+  stepTrial(now);
+}
+function stepTrial(now){
+  const b = B, c = b.cur;
+  if (c.onset === null){
+    if (now >= c.onsetSched){
+      showFix(false); showLetter(c.letter); setFlash(true);
+      c.onset = now; c.frameMs = lastDelta || null; c.flashOn = true; c.letterOn = true;
+    } else return;
+  }
+  if (c.flashOn && now >= c.onset + P.syncFlashMs){ setFlash(false); c.flashOn = false; }
+  if (!c.closed && now >= c.onset + P.maxRtMs){
+    c.closed = true;
+    if (c.letterOn){ hideLetter(); c.letterOn = false; }
+    if (b.kind === 'practice' && P.practiceFeedback && !c.fbShown){
+      if (c.type === 'go' && !c.resp) practiceFb(now, TEXT.fbOmission());
+      else if (c.prematureN > 0) practiceFb(now, TEXT.fbPremature());
+    }
+  }
+  if (c.fbUntil !== null && now >= c.fbUntil){ hideFb(); c.fbUntil = null; c.fbEnd = now; }
+  if (!c.closed || c.flashOn || c.fbUntil !== null) return;
+  // schedule of the next fixation
+  let next = c.onsetSched + Math.max(P.postMs, P.maxRtMs);
+  if (b.kind === 'practice' && c.fbEnd !== null) next = Math.max(next, c.fbEnd + 300);
+  if (now < next) return;
+  finalize(c);
+  b.idx++;
+  if (b.idx >= b.trials.length){ endBlock(); return; }
+  if (now - next > 500) next = now;   // after a long stall, restart the schedule from now
+  beginTrial(now, next);
+}
+function practiceFb(now, text){ const c = B.cur; c.fbShown = true; c.fbUntil = now + P.feedbackMs; showFb(text); }
+
+function registerTouch(ts, x, y){
+  const b = B; if (!b || paused) return;
+  if (b.phase !== 'trial' || !b.cur) return;          // countdown / flashes / lead-in: ignore
+  const c = b.cur;
+  if (c.onset === null || ts < c.onset){             // before the letter was drawn
+    c.prematureN++; if (c.prematureFirst === null) c.prematureFirst = ts - c.onsetSched; return;
+  }
+  if (!c.closed){
+    if (!c.resp){
+      c.resp = true; c.rt = ts - c.onset;
+      const dx = x - L.cx, dy = y - L.cy;
+      c.x = dx / P.pxPerCm; c.y = -dy / P.pxPerCm;     // cm from circle centre; +y = away from participant
+      c.inT = Math.hypot(dx, dy) <= L.R + 0.5*P.pxPerCm ? 1 : 0;
+      if (c.letterOn){ hideLetter(); c.letterOn = false; }
+      if (b.kind === 'practice' && P.practiceFeedback && c.type === 'nogo' && !c.fbShown)
+        practiceFb(performance.now(), TEXT.fbCommission());
+    } else c.extraN++;
+  } else {
+    if (!c.resp && c.lateRt === null) c.lateRt = ts - c.onset; else c.extraN++;
+  }
+}
+function outcomeOf(c){
+  if (c.aborted) return 'aborted';
+  if (c.onset === null) return 'not_shown';
+  if (c.type === 'go') return c.resp ? 'hit' : 'omission';
+  return c.resp ? 'commission' : 'correct_withhold';
+}
+function finalize(c){
+  const b = B, t0 = 0;
+  const row = {
+    participant: S.meta.participant, session: S.meta.session, hand: S.meta.hand,
+    block: b.blockNum, block_label: b.label, block_run: b.run, trial_in_block: b.idx + 1, code: c.code,
+    type: c.type, letter: c.letter,
+    fix_sched_ms: r1(c.fixSched - t0), fix_ms: r1(c.fix - t0), foreperiod_ms: c.fp, onset_ms: c.onset === null ? '' : r1(c.onset - t0),
+    onset_epoch_ms: c.onset === null ? '' : Math.round(performance.timeOrigin + c.onset),
+    response: c.resp ? 1 : 0, rt_ms: r1(c.rt), touch_x_cm: c.x === null ? '' : r1(c.x), touch_y_cm: c.y === null ? '' : r1(c.y),
+    in_target: c.inT === null ? '' : c.inT, outcome: outcomeOf(c),
+    premature_n: c.prematureN, premature_first_ms: r1(c.prematureFirst), extra_n: c.extraN, late_rt_ms: r1(c.lateRt),
+    frame_ms: r1(c.frameMs), aborted: c.aborted
+  };
+  S.rows.push(row); b.rows.push(row);
+  autosave();
+}
+function logSync(now, i){
+  const b = B;
+  S.rows.push({participant: S.meta.participant, session: S.meta.session, hand: S.meta.hand,
+    block: b.blockNum, block_label: b.label, block_run: b.run, trial_in_block: '', code: '', type: 'sync', letter: '',
+    fix_sched_ms: '', fix_ms: '', foreperiod_ms: '', onset_ms: r1(now), onset_epoch_ms: Math.round(performance.timeOrigin + now),
+    response: '', rt_ms: '', touch_x_cm: '', touch_y_cm: '', in_target: '', outcome: 'block_start_flash_' + (i+1),
+    premature_n: '', premature_first_ms: '', extra_n: '', late_rt_ms: '', frame_ms: r1(lastDelta), aborted: ''});
+}
+function endBlock(){
+  const b = B; cancelAnimationFrame(rafId); B = null; clearStage();
+  const st = computeStats(b.rows.filter(r => !r.aborted), b.label);
+  autosave();
+  b.onDone(st);
+}
+function computeStats(rows, label){
+  rows = rows.filter(r => r.type !== 'sync' && !r.aborted);
+  const go = rows.filter(r => r.type === 'go'), ng = rows.filter(r => r.type === 'nogo');
+  const rts = go.filter(r => r.outcome === 'hit').map(r => Number(r.rt_ms));
+  const m = mean(rts), s = sd(rts);
+  return {label, n: rows.length, goN: go.length, nogoN: ng.length,
+    omissions: go.filter(r => r.outcome === 'omission').length,
+    commissions: ng.filter(r => r.outcome === 'commission').length,
+    meanRt: m, sdRt: s, cv: s/m, medRt: median(rts),
+    premature: rows.filter(r => Number(r.premature_n) > 0).length};
+}
+function statsHeader(){ return `<tr><th>Block</th><th>Trials</th><th>Mean RT (ms)</th><th>SD (ms)</th><th>CV</th><th>Missed go</th><th>No-go errors</th><th>Early touches</th></tr>`; }
+function statsRow(st){
+  const f = x => Number.isFinite(x) ? Math.round(x) : '–';
+  return `<tr><td>${esc(st.label)}</td><td>${st.n}</td><td>${f(st.meanRt)}</td><td>${f(st.sdRt)}</td><td>${Number.isFinite(st.cv) ? st.cv.toFixed(2) : '–'}</td><td>${st.omissions}/${st.goN}</td><td>${st.commissions}/${st.nogoN}</td><td>${st.premature}</td></tr>`;
+}
+
+/* ---------- pause ---------- */
+function pause(reason){
+  if (!B || paused) return;
+  paused = true; cancelAnimationFrame(rafId);
+  const b = B;
+  if (b.phase === 'trial' && b.cur){
+    if (b.cur.closed){ finalize(b.cur); b.idx++; }          // response window already over: keep the trial
+    else { b.cur.aborted = 1; finalize(b.cur); }            // logged as aborted; re-run on resume
+    b.cur = null;
+  }
+  clearStage();
+  $('pauseInfo').innerHTML = `${esc(reason || 'Paused by experimenter')}.<br>${b.kind === 'practice' ? 'Practice' : 'Part ' + b.blockNum + ' of ' + P.blocks}, trial ${Math.min(b.idx+1, b.trials.length)} of ${b.trials.length}.`;
+  $('pause').classList.remove('hidden');
+}
+function resumeBlock(restart){
+  const b = B; if (!b) return;
+  $('pause').classList.add('hidden');
+  if (restart){ S.run++; b.run = S.run; b.idx = 0; b.rows = []; }
+  else if (b.idx >= b.trials.length){ paused = false; showScreen('stage'); endBlock(); return; }
+  b.phase = 'countdown'; b.phaseStart = null; b.cur = null;
+  paused = false; lastFrame = 0;
+  showScreen('stage'); layout(); clearStage();
+  rafId = requestAnimationFrame(frame);
+}
+
+/* ---------- data export ---------- */
+const COLS = ['participant','session','hand','block','block_label','block_run','trial_in_block','code','type','letter',
+  'fix_sched_ms','fix_ms','foreperiod_ms','onset_ms','onset_epoch_ms','response','rt_ms','touch_x_cm','touch_y_cm','in_target','outcome',
+  'premature_n','premature_first_ms','extra_n','late_rt_ms','frame_ms','aborted'];
+function sessionSnapshot(){ return {meta: S.meta, rows: S.rows, exported: false}; }
+function autosave(){ if (!S) return; const snap = sessionSnapshot();
+  let prev = null; try { prev = JSON.parse(lsGet(S.lsKey) || 'null'); } catch(e){}
+  snap.exported = !!(prev && prev.exported && prev.rows && prev.rows.length === snap.rows.length);
+  lsSet(S.lsKey, JSON.stringify(snap)); }
+function csvText(d){
+  const q = v => { const s = v == null ? '' : String(v); return /[",\n]/.test(s) ? '"' + s.replace(/"/g,'""') + '"' : s; };
+  const m = d.meta;
+  const head = [
+    `# task=${m.task} version=${m.version} participant=${m.participant} session=${m.session} started=${m.started_iso}`,
+    `# hand=${m.hand} seed=${m.seed} notes=${(m.notes||'').replace(/[\r\n]+/g,' ')}`,
+    `# params=${JSON.stringify(m.params)}`,
+    `# device=${JSON.stringify(m.device)}`,
+    `# times in ms from page load (performance.now); onset = animation frame in which the letter and corner patches were drawn; rt = touch time - onset; touch x/y in cm from circle centre (+y = away from participant)`
+  ];
+  const lines = [COLS.join(',')];
+  for (const r of d.rows) lines.push(COLS.map(c => q(r[c])).join(','));
+  return head.join('\n') + '\n' + lines.join('\n') + '\n';
+}
+function csvName(d){ return `GNG_${d.meta.participant}_${d.meta.session}.csv`; }
+function markExported(key){ try { const d = JSON.parse(lsGet(key)); if (d){ d.exported = true; lsSet(key, JSON.stringify(d)); } } catch(e){} renderSaved(); }
+async function exportCsv(d, key){
+  const name = csvName(d), text = csvText(d);
+  try {
+    const file = new File([text], name, {type: 'text/csv'});
+    if (navigator.canShare && navigator.canShare({files: [file]})){
+      await navigator.share({files: [file], title: name});
+      markExported(key); return;
+    }
+  } catch(e){ if (e && e.name === 'AbortError') return; }
+  downloadCsv(d, key);
+}
+function downloadCsv(d, key){
+  const blob = new Blob([csvText(d)], {type: 'text/csv'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = csvName(d);
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+  markExported(key);
+}
+
+/* ---------- wake lock / full screen ---------- */
+async function requestWakeLock(){ try { if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); } catch(e){ wakeLock = null; } }
+function releaseWakeLock(){ try { if (wakeLock) wakeLock.release(); } catch(e){} wakeLock = null; }
+function goFullscreen(){ const el = document.documentElement;
+  try { (el.requestFullscreen || el.webkitRequestFullscreen).call(el); } catch(e){} }
+
+/* ---------- layout preview ---------- */
+function preview(){
+  P = currentParams(); previewMode = true;
+  showScreen('stage'); layout(); clearStage();
+  setFlash(true); setCode((1 << P.codeBits) - 1 & 0b101010101010); setTnum('123');
+  showLetter(P.goLetter);
+  $('ruler').classList.remove('hidden'); $('rulerLbl').classList.remove('hidden'); $('previewLbl').classList.remove('hidden');
+}
+function endPreview(){ previewMode = false; clearStage(); showScreen('setup'); updateEnv(); }
+
+/* ---------- input ---------- */
+let lpTimer = null, lpId = null;
+function stagePos(e){ const r = $('stage').getBoundingClientRect(); return {x: e.clientX - r.left, y: e.clientY - r.top}; }
+function inPauseZone(x, y){ const z = L.pause; return z && x >= z.x0 && x <= z.x1 && y >= z.y0 && y <= z.y1; }
+$('stage').addEventListener('pointerdown', e => {
+  e.preventDefault();
+  if (previewMode){ endPreview(); return; }
+  const ts = evTime(e), {x, y} = stagePos(e);
+  if (inPauseZone(x, y)){           // hold for 1 s to pause; a brief touch here is still logged
+    clearTimeout(lpTimer); lpId = e.pointerId;
+    lpTimer = setTimeout(() => { lpTimer = null; pause('Paused by experimenter'); }, 1000);
+  }
+  registerTouch(ts, x, y);
+}, {passive: false});
+const cancelLp = e => { if (lpTimer && (lpId === null || e.pointerId === lpId)){ clearTimeout(lpTimer); lpTimer = null; } };
+$('stage').addEventListener('pointerup', cancelLp);
+$('stage').addEventListener('pointercancel', cancelLp);
+$('stage').addEventListener('touchstart', e => e.preventDefault(), {passive: false});
+$('stage').addEventListener('touchmove', e => e.preventDefault(), {passive: false});
+document.addEventListener('gesturestart', e => e.preventDefault());
+document.addEventListener('dblclick', e => e.preventDefault());
+document.addEventListener('contextmenu', e => { if (!$('stage').classList.contains('hidden')) e.preventDefault(); });
+document.addEventListener('keydown', e => {
+  if (previewMode && (e.key === 'Escape' || e.key === ' ')){ endPreview(); return; }
+  if (!B) return;
+  if (e.key === 'Escape' || e.key === 'p'){ e.preventDefault(); if (paused) return; pause('Paused from keyboard'); return; }
+  if (e.key === ' ' && !e.repeat && !paused){ e.preventDefault(); registerTouch(evTime(e), L.cx, L.cy); }
+});
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden){ if (B && !paused) pause('The task was interrupted (screen locked or app switched)'); }
+  else if (S && (!wakeLock || wakeLock.released)) requestWakeLock();
+});
+addEventListener('resize', () => { if (!$('stage').classList.contains('hidden')) layout(); updateEnv(); });
+
+$('resumeBtn').onclick = () => resumeBlock(false);
+$('restartBtn').onclick = () => resumeBlock(true);
+$('endBtn').onclick = () => { if (confirm('End the session now? Data collected so far will be saved.')) endSession(); };
+$('startBtn').onclick = startSession;
+$('previewBtn').onclick = preview;
+$('fsBtn').onclick = goFullscreen;
+$('resetDefaults').onclick = () => { URLP = {}; renderAdvanced(); updateSummary(); updateEnv(); };
+$('pid').addEventListener('keydown', e => { if (e.key === 'Enter') startSession(); });
+
+/* ---------- init ---------- */
+URLP = readUrlParams();
+renderAdvanced(); updateSummary(); updateEnv(); renderSaved(); measureRefresh();
+window.__gng = { get S(){ return S; }, get B(){ return B; }, get P(){ return P; }, L, csvText, computeStats };
+</script>
+</body>
+</html>
