@@ -2,7 +2,7 @@
 
 A go/no-go task for the ATHENA ADHD study. It runs in Safari on the lab iPad. The participant reaches from a start mark on the table and taps the circle on the iPad when they see **X**. They keep still when they see **A**.
 
-**Live version:** https://neural-control-and-computation-lab.github.io/ipad-tasks/gonogo/
+**Live version:** https://neural-control-and-computation-lab.github.io/ADHD-ipad-tasks/gonogo/ (normally opened from the [session page](../README.md))
 
 Everything is in one file, `index.html`. It needs no internet once it has loaded, and it sends no data anywhere. Data stay on the iPad until you export them.
 
@@ -31,7 +31,7 @@ Everything is in one file, `index.html`. It needs no internet once it has loaded
 
 ## Setting up the iPad
 
-- **Open the task:** go to https://neural-control-and-computation-lab.github.io/ipad-tasks/gonogo/ in Safari, tap Share, then Add to Home Screen. Open it from the home-screen icon so it runs full screen with no browser bars.
+- **Home screen:** see the [main README](../README.md#setting-up-an-ipad). Add only the session page to the home screen and open this task from there.
 - **Rotation:** hold the iPad in landscape and turn on rotation lock (Control Centre). A flat iPad will otherwise flip orientation on its own. The layout also works in portrait, but use the same orientation for everyone.
 - **Screen:** set Auto-Lock to Never and turn on Do Not Disturb. Set the brightness to a fixed level (turn off auto-brightness) so the patches look the same in every session.
 - **Guided Access** (Settings → Accessibility): turn it on and start it once the task is open. This stops home-gestures and notifications from interrupting the task.
@@ -41,17 +41,18 @@ Everything is in one file, `index.html`. It needs no internet once it has loaded
 
 ## Running a session
 
-- **Start:** enter the participant ID and the hand used, then press Start session.
+- **Start:** open the task from the session page. The participant ID, hand and notes are filled in from there. Press Start session.
+  - Opened on its own, the task asks for the ID and hand instead.
 - **Instructions:** read the single instruction screen out loud, then press Start practice.
 - **After practice:** choose Repeat practice or Start part 1. Repeat it if the participant clearly didn't follow the instructions.
 - **Each part:** a part starts as soon as its Start button is pressed. A 3-second countdown gives the participant time to put their finger on the start mark. On break screens, the button unlocks after 15 s.
 - **Pausing:** press and hold the grey code strip at the top centre of the screen for 1 s. From the pause screen you can resume (the interrupted trial is re-run), restart the block, or end and save. The task also pauses on its own if the screen locks or someone switches apps.
-- **Saving:** at the end, press Save CSV… and pick AirDrop, Save to Files, or Dropbox. Download CSV is a fallback.
-- **Backup copy:** sessions also stay on the iPad (listed on the setup screen) until you delete them.
+- **Saving:** at the end you can press Save CSV… right away, or go back to the session page and save both tasks' files together. Download CSV is a fallback.
+- **Backup copy:** every run stays on the iPad until deleted. Runs are listed on the session page, and on this task's setup screen.
 
 ## Data file (backup to the video)
 
-- **File name:** `GNG_<ID>_<date-time>.csv`. The lines starting with `#` hold the settings and device info. Read the file with `comment='#'` in pandas or `comment.char='#'` in R.
+- **File name:** `GNG_<ID>_<date-time>.csv`. The lines starting with `#` hold the visit ID (shared with the storytelling file from the same session), hand, notes, settings and device info. Read the file with `comment='#'` in pandas or `comment.char='#'` in R.
 - **Rows:** one per trial. There are also `sync` rows for the block-start flashes.
 - **Main columns:**
   - `block` (0 = practice), `trial_in_block`, `code` (the trial number in the binary strip)
@@ -87,7 +88,7 @@ Everything is in one file, `index.html`. It needs no internet once it has loaded
 
 ## Updating the task
 
-- The live page is served by GitHub Pages from the `main` branch of the [ipad-tasks](../README.md) repo.
+- The live page is served by GitHub Pages from the `main` branch of the [ADHD-ipad-tasks](../README.md) repo.
 - Edit `gonogo/index.html`, commit and push to `main`. The live page updates within a few minutes.
 - On the iPad, reload the page (or close and reopen the home-screen app) to get the new version.
 - Record which version was used for each participant. The version number is saved in every data file.

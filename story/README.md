@@ -2,7 +2,7 @@
 
 Part of the ATHENA ADHD study. The participant watches two short silent films and listens to two short spoken stories, one at a time. After each one they retell it while a timer counts down. There are no motor instructions; the cameras record incidental movement while they watch, listen and talk.
 
-**Live version:** https://neural-control-and-computation-lab.github.io/ipad-tasks/story/
+**Live version:** https://neural-control-and-computation-lab.github.io/ADHD-ipad-tasks/story/ (normally opened from the [session page](../README.md))
 
 ## Design
 
@@ -25,22 +25,23 @@ Part of the ATHENA ADHD study. The participant watches two short silent films an
 - Put the four files somewhere the iPad can reach (e.g. Dropbox, which shows up in the Files app).
 - On the setup screen, press Load file for each slot and pick the file. Videos: MP4 or MOV. Audio: MP3, M4A or WAV.
 - The files stay on that iPad until removed, so this only needs doing once per iPad. They are not uploaded anywhere, and none are stored in this repository.
-- Safari and the home-screen app keep separate storage, so load the files from the home-screen app if that's how you'll run the task.
+- Safari and the home-screen app keep separate storage. Load the files after opening the task from the session page's home-screen icon, which is how it will be run.
 - Rename each slot (e.g. "Fox and the Cat") so the experimenter preview and the data file use real names.
 - Press Test on each slot to check it plays and the volume is right.
 - The YouTube films need to be downloaded as MP4 files first. Check that the lab has permission to use them.
 
 ## Running a session
 
-- **Start:** enter the participant ID (the order appears), then press Start session. All four files must be loaded.
+- **Start:** open the task from the session page. The participant ID and notes are filled in from there, and the order appears. Press Start session. All four files must be loaded.
+  - Opened on its own, the task asks for the ID instead.
 - **Introduction:** read the introduction screen to the participant, then press Continue.
 - **Each trial:** press Start when the participant is ready. Nothing else is needed until the next preview.
 - **Experimenter menu:** press and hold the top centre of the screen for 1 s (Esc on a keyboard). During playback you can resume, skip to the retell, restart the trial, or end the session. During the retell you can let the countdown continue (it keeps running in the background) or end it early.
-- **Saving:** at the end, press Save CSV… and pick AirDrop, Save to Files, or Dropbox. Sessions also stay on the iPad until deleted from the setup screen.
+- **Saving:** at the end you can press Save CSV… right away, or go back to the session page and save both tasks' files together. Every run stays on the iPad until deleted (session page or this task's setup screen).
 
 ## Data file
 
-- **File name:** `STORY_<ID>_<date-time>.csv`. Lines starting with `#` hold the order, file names and durations, settings and device info. Read the file with `comment='#'` in pandas or `comment.char='#'` in R.
+- **File name:** `STORY_<ID>_<date-time>.csv`. Lines starting with `#` hold the visit ID (shared with the go/no-go file from the same session), the order, file names and durations, hand, notes, settings and device info. Read the file with `comment='#'` in pandas or `comment.char='#'` in R.
 - **Rows:** one row per event, with `trial`, `slot`, `label`, `kind` (video/audio) and `file`.
 - **Events:**
   - `start_pressed`

@@ -2,29 +2,224 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="ADHD tasks">
 <meta name="theme-color" content="#000000">
-<title>NCC Lab iPad Tasks</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon.png">
+<title>ADHD Study iPad Tasks</title>
 <style>
-:root{--bg:#000;--fg:#f2f2f2;--muted:#9a9a9a;--card:#141414;--line:#2a2a2a;--accent:#5aa9ff}
+:root{--bg:#000;--fg:#f2f2f2;--muted:#9a9a9a;--card:#141414;--line:#2a2a2a;--accent:#5aa9ff;--accent-ink:#00172e;--warn:#ffd24d;--danger:#ff7070;--ok:#6fd38a}
 *{box-sizing:border-box}
-html,body{margin:0;background:var(--bg);color:var(--fg);font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif}
-.wrap{max-width:760px;margin:0 auto;padding:max(28px,env(safe-area-inset-top)) 20px 48px}
-h1{font-size:28px;margin:8px 0 6px;font-weight:650}
-p{color:var(--muted);line-height:1.5;font-size:16px;margin:0 0 20px}
-a.card{display:flex;gap:16px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 18px;margin:0 0 14px;color:var(--fg);text-decoration:none}
-a.card:hover,a.card:focus-visible{border-color:var(--accent);outline:none}
-a.card img{width:56px;height:56px;border-radius:12px;flex:0 0 auto}
-a.card b{display:block;font-size:19px;margin-bottom:4px}
-a.card span{color:var(--muted);font-size:15px;line-height:1.4}
+html,body{margin:0;background:var(--bg);color:var(--fg);font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif;-webkit-text-size-adjust:100%}
+body{-webkit-tap-highlight-color:transparent}
+.wrap{max-width:780px;margin:0 auto;padding:max(24px,env(safe-area-inset-top)) 20px 60px}
+h1{font-size:28px;margin:8px 0 6px;font-weight:650;letter-spacing:-.01em}
+.sub{color:var(--muted);margin:0 0 18px;font-size:15px;line-height:1.45}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 18px 16px;margin:0 0 14px}
+.card h2{font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:2px 0 10px;font-weight:600}
+.row{display:flex;align-items:center;gap:12px;margin:9px 0;font-size:17px}
+.row > span{flex:0 0 170px;color:#ddd}
+input,select{font:inherit;font-size:17px;color:var(--fg);background:#0b0b0b;border:1px solid #343434;border-radius:10px;padding:9px 12px;flex:1;min-width:0}
+input:focus,select:focus{outline:2px solid var(--accent);outline-offset:1px}
+.btn{appearance:none;-webkit-appearance:none;border:0;border-radius:12px;padding:13px 20px;font:inherit;font-size:17px;font-weight:600;background:#2b2b2b;color:var(--fg);cursor:pointer;touch-action:manipulation}
+.btn.primary{background:var(--accent);color:var(--accent-ink)}
+.btn.danger{background:#3a1515;color:#ffb3b3}
+.btn.small{font-size:15px;padding:8px 13px;border-radius:10px}
+.btn:disabled{opacity:.35}
+.btns{display:flex;flex-wrap:wrap;gap:10px;margin-top:10px}
+.err{color:var(--danger);font-size:15px;min-height:20px;margin-top:6px}
+.who{font-size:30px;font-weight:700}
+.meta{color:#ccc;font-size:16px;margin-top:4px;line-height:1.5}
+.warn{color:var(--warn)}
+.task{display:flex;align-items:center;gap:14px;padding:12px 0;border-bottom:1px solid var(--line)}
+.task:last-child{border-bottom:0}
+.task img{width:52px;height:52px;border-radius:12px;flex:0 0 auto}
+.task .grow{flex:1;min-width:0}
+.task b{display:block;font-size:19px}
+.task .st{font-size:15px;color:var(--muted);margin-top:3px}
+.task .st.ok{color:var(--ok)}
+.task .st.mid{color:var(--warn)}
+.num{display:inline-block;width:26px;height:26px;border-radius:13px;background:#262626;text-align:center;line-height:26px;font-size:14px;font-weight:700;margin-right:8px;vertical-align:2px}
+table{border-collapse:collapse;width:100%;font-size:15px}
+th,td{text-align:left;padding:7px 6px;border-bottom:1px solid var(--line);vertical-align:middle}
+th{color:var(--muted);font-weight:600;font-size:13px;text-transform:uppercase;letter-spacing:.05em}
+td .btn{margin:2px 0}
+details summary{cursor:pointer;color:#ddd;font-size:16px;padding:4px 0}
+a{color:var(--accent)}
+.hidden{display:none !important}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <h1>NCC Lab iPad tasks</h1>
-  <p>Tasks for markerless motion-tracking experiments (ATHENA). Each one runs in Safari on an iPad, flashes white patches in the screen corners so it can be lined up with the camera video, and saves a CSV log on the iPad. Open a task, then use Share → Add to Home Screen to run it full screen.</p>
-  <a class="card" href="gonogo/"><img src="gonogo/icon.png" alt=""><div><b>Go/no-go reach task</b><span>Reach and tap the circle for X, don't move for A. Practice block plus 4 test blocks, with random fixation times.</span></div></a>
-  <a class="card" href="story/"><img src="story/icon.png" alt=""><div><b>Storytelling task</b><span>Two silent films and two spoken stories in random order, each followed by a timed retell with a countdown.</span></div></a>
+  <h1>ADHD study · iPad tasks</h1>
+  <p class="sub">NCC Lab. Enter the participant here once, then run both tasks from this page. Each task picks up the participant's details and saves its data under this visit.</p>
+
+  <!-- no active session -->
+  <div class="card" id="newCard">
+    <h2>New participant</h2>
+    <label class="row"><span>Participant ID</span><input id="pid" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="e.g. P001"></label>
+    <label class="row"><span>Hand used</span><select id="hand"><option value="right">Right</option><option value="left">Left</option></select></label>
+    <label class="row"><span>Notes (optional)</span><input id="notes" autocomplete="off" placeholder="e.g. medication taken 9:30"></label>
+    <div class="err" id="err"></div>
+    <div class="btns"><button class="btn primary" id="startBtn">Start session</button></div>
+  </div>
+
+  <!-- active session -->
+  <div class="card hidden" id="sessCard">
+    <h2>Current participant</h2>
+    <div class="who" id="who"></div>
+    <div class="meta" id="whoMeta"></div>
+    <div class="btns">
+      <button class="btn small" id="editNotesBtn">Edit notes</button>
+      <button class="btn small danger" id="endBtn">End session</button>
+    </div>
+  </div>
+
+  <div class="card hidden" id="tasksCard">
+    <h2>Tasks</h2>
+    <p class="sub" style="margin:0 0 4px" id="orderNote"></p>
+    <div id="taskList"></div>
+  </div>
+
+  <div class="card hidden" id="dataCard">
+    <h2>Data for this participant</h2>
+    <div id="pData"></div>
+    <div class="btns"><button class="btn primary" id="saveAllBtn">Save all CSVs for this participant…</button></div>
+    <p class="sub" style="margin:10px 0 0">Saves each task's CSV through the share sheet (AirDrop, Save to Files or Dropbox). Copies stay on this iPad until deleted below.</p>
+  </div>
+
+  <div class="card">
+    <h2>All data on this iPad</h2>
+    <div class="meta" id="storeMeta"></div>
+    <details style="margin-top:8px"><summary>Show all saved task runs</summary><div id="allData"></div>
+      <div class="btns"><button class="btn small danger" id="delExportedBtn">Delete all exported runs</button></div>
+    </details>
+  </div>
+
+  <p class="sub">Setting up an iPad: open this page in Safari, tap Share → Add to Home Screen, and run everything from that icon. The tasks open inside it and share its storage. Don't add the tasks as separate icons. Details: <a href="https://github.com/neural-control-and-computation-lab/ADHD-ipad-tasks">github.com/neural-control-and-computation-lab/ADHD-ipad-tasks</a></p>
 </div>
+
+<script src="session.js"></script>
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const TASK_ICONS = {gonogo: 'gonogo/icon.png', story: 'story/icon.png'};
+
+/* Counterbalanced task order: odd-numbered IDs start with go/no-go, even-numbered with storytelling. */
+function taskOrder(pid){
+  const m = String(pid).match(/(\d+)\D*$/);
+  let odd, why;
+  if (m){ odd = parseInt(m[1], 10) % 2 === 1; why = `ID number ${parseInt(m[1], 10)} is ${odd ? 'odd' : 'even'}`; }
+  else { let h = 0; for (const ch of String(pid)) h = (h*31 + ch.charCodeAt(0)) >>> 0; odd = h % 2 === 1; why = 'no number in the ID, so set from the ID text'; }
+  const ids = odd ? ['gonogo', 'story'] : ['story', 'gonogo'];
+  return {ids, why};
+}
+function statusFor(recs){
+  if (!recs.length) return {cls: '', text: 'Not started'};
+  const r = recs[0];
+  const when = r.started_local ? 'started ' + r.started_local.split(',').pop().trim().replace(/:\d\d(?=\s|$)/, '') : '';
+  const exp = r.exported ? ' · exported' : ' · not exported yet';
+  const sum = r.summary ? ' · ' + r.summary : '';
+  if (r.status === 'finished') return {cls: 'ok', text: `Finished (${when})${sum}${exp}`};
+  if (r.status === 'ended early') return {cls: 'mid', text: `Ended early (${when})${sum}${exp}`};
+  return {cls: 'mid', text: `Not finished (${when})${sum}`};
+}
+function render(){
+  const s = Session.current();
+  $('newCard').classList.toggle('hidden', !!s);
+  for (const id of ['sessCard','tasksCard','dataCard']) $(id).classList.toggle('hidden', !s);
+  const all = Session.records();
+  if (s){
+    $('who').textContent = s.participant;
+    const age = s.started_iso ? (Date.now() - Date.parse(s.started_iso))/36e5 : 0;
+    $('whoMeta').innerHTML = `${esc(s.hand === 'left' ? 'Left' : 'Right')} hand` + (s.notes ? ` · ${esc(s.notes)}` : '') +
+      `<br>Session started ${esc(s.started_local || '')} (visit ${esc(s.visit)})` +
+      (age > 12 ? `<br><span class="warn">This session started more than 12 hours ago. End it if this is a new participant.</span>` : '');
+    const ord = taskOrder(s.participant);
+    $('orderNote').textContent = `Suggested order (counterbalanced: ${ord.why}).`;
+    const box = $('taskList'); box.innerHTML = '';
+    const mine = all.filter(r => r.participant === s.participant && r.visit === s.visit);
+    let nextMarked = false;
+    ord.ids.forEach((id, i) => {
+      const t = Session.TASKS.find(x => x.id === id);
+      const recs = mine.filter(r => r.taskId === id);
+      const st = statusFor(recs);
+      const done = recs.some(r => r.status === 'finished');
+      const row = document.createElement('div'); row.className = 'task';
+      row.innerHTML = `<img src="${TASK_ICONS[id]}" alt=""><div class="grow"><b><span class="num">${i+1}</span>${esc(t.name)}</b><div class="st ${st.cls}">${esc(st.text)}</div></div>`;
+      const b = document.createElement('button'); b.className = 'btn' + (!done && !nextMarked ? ' primary' : '');
+      if (!done) nextMarked = true;
+      b.textContent = recs.length ? 'Open again' : 'Open';
+      b.onclick = () => location.assign(Session.taskLink(t, s));
+      row.appendChild(b); box.appendChild(row);
+    });
+    const pRecs = all.filter(r => r.participant === s.participant);
+    $('pData').innerHTML = pRecs.length ? table(pRecs, false) : '<p class="sub" style="margin:0">No task data yet.</p>';
+    bindRows($('pData'), pRecs);
+    $('saveAllBtn').disabled = !pRecs.length;
+  }
+  const used = Session.storageUsed();
+  $('storeMeta').innerHTML = `${all.length} saved task run${all.length === 1 ? '' : 's'}, ${all.filter(r => !r.exported).length} not exported. ` +
+    `Using about ${(used/1024).toFixed(0)} KB of the browser's ~5 MB limit` +
+    (used > 3.5e6 ? '. <span class="warn">Storage is getting full: export, then delete old runs.</span>' : '.');
+  $('allData').innerHTML = all.length ? table(all, true) : '<p class="sub" style="margin:8px 0 0">Nothing saved yet.</p>';
+  bindRows($('allData'), all);
+}
+function table(recs, showPid){
+  return `<table><tr>${showPid ? '<th>ID</th>' : ''}<th>Task</th><th>Started</th><th>Status</th><th></th></tr>` +
+    recs.map((r, i) => `<tr>${showPid ? `<td>${esc(r.participant)}</td>` : ''}<td>${esc(r.taskName)}</td><td>${esc(r.started_local || r.session)}</td>` +
+      `<td>${esc(r.status || 'in progress')}${r.exported ? ' · <span style="color:var(--ok)">exported</span>' : ' · <span class="warn">not exported</span>'}</td>` +
+      `<td style="text-align:right;white-space:nowrap"><button class="btn small" data-act="save" data-i="${i}">Save CSV</button> <button class="btn small danger" data-act="del" data-i="${i}">Delete</button></td></tr>`).join('') + '</table>';
+}
+function bindRows(box, recs){
+  box.querySelectorAll('button[data-act]').forEach(b => {
+    const r = recs[+b.dataset.i];
+    b.onclick = async () => {
+      if (b.dataset.act === 'save'){ if (await Session.exportFiles([{name: r.filename, text: r.csv}])) Session.markExported([r.key]); render(); }
+      else if (confirm(`Delete ${r.taskName} data for ${r.participant} (${r.started_local || r.session}) from this iPad?` + (r.exported ? '' : '\n\nThis run has NOT been exported.'))){ Session.lsDel(r.key); render(); }
+    };
+  });
+}
+$('startBtn').onclick = () => {
+  const pid = $('pid').value.trim();
+  if (!pid){ $('err').textContent = 'Enter a participant ID.'; return; }
+  if (!Session.validId(pid)){ $('err').textContent = 'Use letters, numbers, - or _ only.'; return; }
+  const earlier = Session.records().filter(r => r.participant === pid);
+  if (earlier.length && !confirm(`There is already data for ${pid} on this iPad. Start a new session for ${pid} anyway?`)) return;
+  $('err').textContent = '';
+  Session.start({participant: pid, hand: $('hand').value, notes: $('notes').value.trim()});
+  render();
+};
+$('pid').addEventListener('keydown', e => { if (e.key === 'Enter') $('startBtn').click(); });
+$('endBtn').onclick = () => {
+  const s = Session.current(); if (!s) return;
+  const unexp = Session.records().filter(r => r.participant === s.participant && !r.exported).length;
+  if (!confirm(`End the session for ${s.participant}?` + (unexp ? `\n\n${unexp} task run(s) for this participant have not been exported yet. They stay on the iPad.` : ''))) return;
+  Session.end(); $('pid').value = ''; $('notes').value = ''; render();
+};
+$('editNotesBtn').onclick = () => {
+  const s = Session.current(); if (!s) return;
+  const v = prompt('Notes for this participant (saved with each task run started after this):', s.notes || '');
+  if (v !== null){ Session.update({notes: v.trim()}); render(); }
+};
+$('saveAllBtn').onclick = async () => {
+  const s = Session.current(); if (!s) return;
+  const recs = Session.records().filter(r => r.participant === s.participant);
+  if (await Session.exportFiles(recs.map(r => ({name: r.filename, text: r.csv})))) Session.markExported(recs.map(r => r.key));
+  render();
+};
+$('delExportedBtn').onclick = () => {
+  const ex = Session.records().filter(r => r.exported);
+  if (!ex.length){ alert('No exported runs to delete.'); return; }
+  if (confirm(`Delete ${ex.length} exported task run(s) from this iPad?`)){ ex.forEach(r => Session.lsDel(r.key)); render(); }
+};
+addEventListener('pageshow', render);          // refresh statuses when coming back from a task
+render();
+</script>
 </body>
 </html>

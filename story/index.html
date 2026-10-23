@@ -8,7 +8,8 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="apple-mobile-web-app-title" content="Stories">
 <meta name="theme-color" content="#000000">
-<link rel="apple-touch-icon" href="icon.png">
+<link rel="manifest" href="../manifest.json">
+<link rel="apple-touch-icon" href="../icon.png">
 <title>Storytelling Task</title>
 <!--
   Storytelling (retell) task for iPad (Safari), NCC Lab, York University.
@@ -60,6 +61,9 @@ details summary{cursor:pointer;color:#ddd;font-size:16px;padding:4px 0}
 .btn:disabled{opacity:.35}
 .btns{display:flex;flex-wrap:wrap;gap:12px;margin-top:10px}
 .err{color:var(--danger);font-size:15px;min-height:20px;margin-top:6px}
+.back{display:inline-block;margin:4px 0 6px;font-size:16px;color:var(--accent);background:none;border:0;padding:6px 0;font:inherit;cursor:pointer}
+.fromsess{font-size:14px;color:var(--muted);margin-top:4px}
+input[readonly]{color:#bbb;background:#151515}
 .slot{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 0;border-bottom:1px solid var(--line)}
 .slot:last-child{border-bottom:0}
 .slot .kind{flex:0 0 64px;font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
@@ -120,6 +124,7 @@ table.log th{color:var(--muted);font-weight:600}
 <!-- ================= SETUP (experimenter) ================= -->
 <div id="setup" class="screen ui">
  <div class="wrap">
+  <button class="back" id="backBtn">‹ Session page</button>
   <h1>Storytelling task</h1>
   <p class="sub">NCC Lab · ATHENA ADHD study. Two silent films and two spoken stories, one at a time in random order. After each one the participant retells it while a timer counts down.</p>
 
@@ -127,6 +132,7 @@ table.log th{color:var(--muted);font-weight:600}
    <h2>Participant</h2>
    <label class="row"><span>Participant ID</span><input id="pid" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="e.g. P001"></label>
    <label class="row"><span>Notes (optional)</span><input id="notes" autocomplete="off"></label>
+   <div class="fromsess hidden" id="fromSession">Set on the session page. To change the participant, go back and end the session there.</div>
    <div class="summary" id="orderBox"></div>
    <div class="err" id="setupErr"></div>
   </div>
@@ -215,9 +221,10 @@ table.log th{color:var(--muted);font-weight:600}
   </div>
 </div>
 
+<script src="../session.js"></script>
 <script>
 'use strict';
-const VERSION = '1.0.0';
+const VERSION = '1.1.0';
 /* ---------------- parameters (URL query can override, e.g. ?retellSec=45) ---------------- */
 const DEFAULTS = {
   retellSec: 30,          // time to retell each film/story
@@ -468,15 +475,31 @@ function log(event, extra = {}){
     event, t_ms: r1(t), epoch_ms: nowEpoch(t), media_time_s: extra.mt != null ? Math.round(extra.mt*1000)/1000 : '', detail: extra.detail || ''});
   autosave();
 }
-function autosave(){ if (!S) return; const snap = {meta: S.meta, rows: S.rows, exported: false};
-  try { const prev = JSON.parse(lsGet(S.lsKey) || 'null'); snap.exported = !!(prev && prev.exported && prev.rows && prev.rows.length === snap.rows.length); } catch(e){}
-  lsSet(S.lsKey, JSON.stringify(snap)); }
+const currentCsv = () => csvText({meta: S.meta, rows: S.rows});
+const retellsDone = rows => new Set(rows.filter(r => r.event === 'retell_end').map(r => r.trial)).size;
+/* Saved copy of this run (read by the session page too): status, a short summary and the CSV text. */
+function autosave(){
+  if (!S) return;
+  const csv = currentCsv();
+  let prev = null; try { prev = JSON.parse(lsGet(S.lsKey) || 'null'); } catch(e){}
+  const rec = {task: 'story', version: VERSION, participant: S.meta.participant, visit: S.meta.visit, session: S.meta.session,
+    started_local: S.meta.started_local, status: S.status, summary: `${retellsDone(S.rows)} of ${S.order.length} retells`,
+    filename: csvName(S.meta), exported: !!(prev && prev.exported && prev.csv === csv), csv};
+  S.saveOk = lsSet(S.lsKey, JSON.stringify(rec));
+}
+function asRecord(d){            // saved copies from version 1.0 held the raw rows instead of CSV text
+  if (!d) return null;
+  if (d.csv) return d;
+  if (!d.meta) return null;
+  return {participant: d.meta.participant, started_local: d.meta.started_local, status: '', summary: `${retellsDone(d.rows || [])} of 4 retells`,
+    filename: csvName(d.meta), csv: csvText(d), exported: d.exported};
+}
 function csvText(d){
   const q = v => { const s = v == null ? '' : String(v); return /[",\n]/.test(s) ? '"' + s.replace(/"/g,'""') + '"' : s; };
   const m = d.meta;
   const head = [
-    `# task=${m.task} version=${m.version} participant=${m.participant} session=${m.session} started=${m.started_iso}`,
-    `# order=${m.order.join(' ')} seed=${m.seed} notes=${(m.notes||'').replace(/[\r\n]+/g,' ')}`,
+    `# task=${m.task} version=${m.version} participant=${m.participant} visit=${m.visit || ''} session=${m.session} started=${m.started_iso}`,
+    `# order=${m.order.join(' ')} seed=${m.seed} hand=${m.hand || ''} notes=${(m.notes||'').replace(/[\r\n]+/g,' ')}`,
     `# media=${JSON.stringify(m.media)}`,
     `# params=${JSON.stringify(m.params)}`,
     `# device=${JSON.stringify(m.device)}`,
@@ -484,28 +507,27 @@ function csvText(d){
   ];
   return head.join('\n') + '\n' + [COLS.join(','), ...d.rows.map(r => COLS.map(c => q(r[c])).join(','))].join('\n') + '\n';
 }
-const csvName = d => `STORY_${d.meta.participant}_${d.meta.session}.csv`;
+const csvName = m => `STORY_${m.participant}_${m.session}.csv`;
 function markExported(key){ try { const d = JSON.parse(lsGet(key)); if (d){ d.exported = true; lsSet(key, JSON.stringify(d)); } } catch(e){} renderSaved(); }
-async function exportCsv(d, key){
-  const name = csvName(d), text = csvText(d);
+async function exportCsv(name, text, key){
   try { const file = new File([text], name, {type:'text/csv'});
     if (navigator.canShare && navigator.canShare({files:[file]})){ await navigator.share({files:[file], title:name}); markExported(key); return; }
   } catch(e){ if (e && e.name === 'AbortError') return; }
-  downloadCsv(d, key);
+  downloadCsv(name, text, key);
 }
-function downloadCsv(d, key){
-  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csvText(d)], {type:'text/csv'})); a.download = csvName(d);
+function downloadCsv(name, text, key){
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], {type:'text/csv'})); a.download = name;
   document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 10000); markExported(key);
 }
 function renderSaved(){
   const keys = lsKeys().filter(k => k.startsWith(LS_PREFIX + 'session:')).sort().reverse();
   const list = $('savedList'); list.innerHTML = ''; $('savedCard').classList.toggle('hidden', keys.length === 0);
   for (const k of keys){
-    let d; try { d = JSON.parse(lsGet(k)); } catch(e){ continue; } if (!d || !d.meta) continue;
-    const done = new Set(d.rows.filter(r => r.event === 'retell_end').map(r => r.trial)).size;
+    let d; try { d = JSON.parse(lsGet(k)); } catch(e){ continue; }
+    const r = asRecord(d); if (!r) continue;
     const div = document.createElement('div'); div.className = 'sess';
-    div.innerHTML = `<div class="grow"><b>${esc(d.meta.participant)}</b> · ${esc(d.meta.started_local)} · ${done} of 4 trials${d.exported ? ' · <span style="color:var(--ok)">exported</span>' : ' · <span style="color:var(--warn)">not exported</span>'}</div>`;
-    const b1 = document.createElement('button'); b1.className = 'btn small'; b1.textContent = 'Save CSV'; b1.onclick = () => exportCsv(d, k);
+    div.innerHTML = `<div class="grow"><b>${esc(r.participant)}</b> · ${esc(r.started_local)} · ${esc(r.status || '')} · ${esc(r.summary || '')}${r.exported ? ' · <span style="color:var(--ok)">exported</span>' : ' · <span style="color:var(--warn)">not exported</span>'}</div>`;
+    const b1 = document.createElement('button'); b1.className = 'btn small'; b1.textContent = 'Save CSV'; b1.onclick = () => exportCsv(r.filename, r.csv, k);
     const b2 = document.createElement('button'); b2.className = 'btn small danger'; b2.textContent = 'Delete';
     b2.onclick = () => { if (confirm('Delete this saved session from the iPad?')){ lsDel(k); renderSaved(); } };
     div.append(b1, b2); list.appendChild(div);
@@ -544,12 +566,13 @@ async function startSession(){
   P = currentParams();
   const now = new Date(), seedStr = (P.seed && P.seed.trim()) || id;
   const order = seededOrder(seedStr);
-  S = { meta: {task:'storytelling', version: VERSION, participant: id, notes: $('notes').value.trim(),
-          session: stamp(now), started_local: now.toLocaleString(), started_iso: now.toISOString(), seed: seedStr,
+  const sess = SESSION && SESSION.participant === id ? SESSION : null;
+  S = { meta: {task:'storytelling', version: VERSION, participant: id, hand: sess ? sess.hand : '', notes: $('notes').value.trim(),
+          visit: sess ? sess.visit : '', session: stamp(now), started_local: now.toLocaleString(), started_iso: now.toISOString(), seed: seedStr,
           order: order.map(labelOf), params: {...P},
           media: Object.fromEntries(SLOTS.map(s => [s.id, {label: labelOf(s.id), file: media[s.id].name, duration_s: r1(media[s.id].duration)}])),
           device: {ua: navigator.userAgent, w: innerWidth, h: innerHeight, dpr: devicePixelRatio || 1, standalone: navigator.standalone === true, refreshHz}},
-        order, idx: 0, rows: [], cur: null, state: 'idle' };
+        order, idx: 0, rows: [], cur: null, state: 'idle', status: 'in progress', saveOk: true };
   S.lsKey = LS_PREFIX + 'session:' + S.meta.session + ':' + id;
   log('session_start', {detail: 'order: ' + S.meta.order.join(' > ')});
   requestWakeLock(); layout();
@@ -634,7 +657,7 @@ function finishRetell(t, early){
 function endSession(){
   if (!S) return;
   stopMedia(); flashRun = null; setFlash(false); $('menu').classList.add('hidden');
-  S.cur = null; log('session_end'); S.state = 'ended'; releaseWakeLock();
+  S.cur = null; S.status = S.endedEarly ? 'ended early' : 'finished'; log('session_end'); S.state = 'ended'; releaseWakeLock();
   message({title: 'Finished', body: TEXT.end()});
   const trials = {};
   for (const r of S.rows) if (r.trial !== ''){ const t = trials[r.trial] = trials[r.trial] || {label: r.label, kind: r.kind}; if (r.event === 'media_playing') t.play = true; if (r.event === 'retell_end') t.retell = true; if (r.event === 'trial_skipped') t.skipped = true; }
@@ -642,14 +665,14 @@ function endSession(){
   for (const n of Object.keys(trials).sort((a,b) => a-b)){ const t = trials[n];
     tbl += `<tr><td>${n}</td><td>${esc(t.label)}</td><td>${t.play ? 'yes' : 'no'}</td><td>${t.retell ? 'yes' : (t.skipped ? 'skipped' : 'no')}</td></tr>`; }
   const card = document.createElement('div'); card.className = 'card'; card.style.textAlign = 'left'; card.style.marginTop = '24px';
-  card.innerHTML = `<h2>Experimenter · ${esc(S.meta.participant)} · session ${esc(S.meta.session)}</h2><table class="log">${tbl}</table><p class="sub" style="margin-top:12px">Data are also kept on this iPad until deleted from the setup screen.</p>`;
+  card.innerHTML = `<h2>Experimenter · ${esc(S.meta.participant)} · session ${esc(S.meta.session)}</h2><table class="log">${tbl}</table><p class="sub" style="margin-top:12px">${S.saveOk ? 'A copy is also kept on this iPad (see the session page) until deleted.' : '<span style="color:var(--danger)">The backup copy on this iPad could not be saved (storage full). Save the CSV now, then delete old exported runs from the session page.</span>'}</p>`;
   const btns = document.createElement('div'); btns.className = 'btns';
-  const snap = () => ({meta: S.meta, rows: S.rows});
-  const key = S.lsKey;
-  const b1 = document.createElement('button'); b1.className = 'btn primary'; b1.textContent = 'Save CSV…'; b1.onclick = () => exportCsv(snap(), key);
-  const b2 = document.createElement('button'); b2.className = 'btn'; b2.textContent = 'Download CSV'; b2.onclick = () => downloadCsv(snap(), key);
-  const b3 = document.createElement('button'); b3.className = 'btn'; b3.textContent = 'New participant';
-  b3.onclick = () => { S = null; $('pid').value = ''; $('notes').value = ''; showScreen('setup'); renderSaved(); updateSummary(); updateEnv(); };
+  const key = S.lsKey, name = csvName(S.meta);
+  const b1 = document.createElement('button'); b1.className = 'btn primary'; b1.textContent = 'Save CSV…'; b1.onclick = () => exportCsv(name, currentCsv(), key);
+  const b2 = document.createElement('button'); b2.className = 'btn'; b2.textContent = 'Download CSV'; b2.onclick = () => downloadCsv(name, currentCsv(), key);
+  const b3 = document.createElement('button'); b3.className = 'btn';
+  if (SESSION){ b3.textContent = 'Back to session page'; b3.onclick = () => location.assign('../'); }
+  else { b3.textContent = 'New participant'; b3.onclick = () => { S = null; $('pid').value = ''; $('notes').value = ''; showScreen('setup'); renderSaved(); updateSummary(); updateEnv(); }; }
   btns.append(b1, b2, b3); card.appendChild(btns); $('msgExtra').appendChild(card);
 }
 
@@ -677,7 +700,7 @@ function openMenu(reason){
     add('End the retell now', '', () => { finishRetell(performance.now(), true); });
   }
   add('Restart this trial', '', () => { log('trial_restarted'); stopMedia(); flashRun = null; setFlash(false); S.state = 'preview'; trialPreview(); });
-  add('End session and save data', 'danger', () => { if (confirm('End the session now? Data so far will be saved.')) endSession(); else resume(); });
+  add('End session and save data', 'danger', () => { if (confirm('End the session now? Data so far will be saved.')){ S.endedEarly = true; endSession(); } else resume(); });
   $('menu').classList.remove('hidden');
 }
 
@@ -713,6 +736,13 @@ document.addEventListener('visibilitychange', () => {
 });
 addEventListener('resize', () => { if (!$('stage').classList.contains('hidden')) layout(); updateEnv(); });
 $('pid').addEventListener('input', updateOrder);
+$('backBtn').onclick = () => location.assign('../');
+const SESSION = window.Session ? Session.current() : null;     // participant set on the session page
+if (SESSION){
+  $('pid').value = SESSION.participant; $('pid').readOnly = true;
+  $('notes').value = SESSION.notes || ''; $('notes').readOnly = true;
+  $('fromSession').classList.remove('hidden');
+}
 $('startBtn').onclick = startSession;
 $('previewBtn').onclick = layoutCheck;
 $('fsBtn').onclick = goFullscreen;
