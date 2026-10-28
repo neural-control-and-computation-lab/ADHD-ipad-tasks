@@ -63,8 +63,15 @@ details summary{cursor:pointer;color:#ddd;font-size:16px;padding:4px 0}
 .btns{display:flex;flex-wrap:wrap;gap:12px;margin-top:10px}
 .err{color:var(--danger);font-size:15px;min-height:20px;margin-top:6px}
 .back{display:inline-block;margin:4px 0 6px;font-size:16px;color:var(--accent);background:none;border:0;padding:6px 0;font:inherit;cursor:pointer}
-.fromsess{font-size:14px;color:var(--muted);margin-top:4px}
-input[readonly]{color:#bbb;background:#151515}
+.who{font-size:30px;font-weight:700}
+.who small{font-size:18px;font-weight:500;color:#ccc;margin-left:10px}
+.status{font-size:16px;margin-top:10px;color:#ccc}
+.status.ok{color:var(--ok)} .status.warn{color:var(--warn)}
+.btn.big{font-size:22px;padding:16px 48px}
+details.more{padding:12px 18px}
+details.more > summary{font-size:16px;color:#ccc}
+details.more[open] > summary{margin-bottom:6px}
+details.more h2{margin-top:18px}
 .slot{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 0;border-bottom:1px solid var(--line)}
 .slot:last-child{border-bottom:0}
 .slot .kind{flex:0 0 64px;font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
@@ -74,9 +81,6 @@ input[readonly]{color:#bbb;background:#151515}
 .slot .file.ok{color:var(--ok)}
 .order{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
 .order span{background:#1f1f1f;border:1px solid #333;border-radius:8px;padding:5px 10px;font-size:15px}
-table.log{border-collapse:collapse;width:100%;font-size:14px;font-variant-numeric:tabular-nums}
-table.log th,table.log td{text-align:left;padding:5px 8px;border-bottom:1px solid var(--line)}
-table.log th{color:var(--muted);font-weight:600}
 .sess{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:8px 0;border-bottom:1px solid var(--line);font-size:15px}
 .sess:last-child{border-bottom:0}
 .sess .grow{flex:1;min-width:180px}
@@ -89,11 +93,10 @@ table.log th{color:var(--muted);font-weight:600}
 #msg .body p{margin:0 0 16px}
 #msg .body .big{font-size:30px;font-weight:700}
 #msg .body .small{font-size:20px;color:#bbb}
-#msg .next{display:inline-block;text-align:left;background:#121212;border:1px solid #333;border-radius:14px;padding:16px 22px;margin:4px 0 8px}
-#msg .next .k{font-size:14px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:700}
-#msg .next .v{font-size:30px;font-weight:700;margin-top:4px}
-#msg .next .d{font-size:18px;color:#bbb;margin-top:4px}
-#msg .note{font-size:16px;color:var(--muted);margin-top:18px}
+#msg .note{font-size:20px;color:#bbb;margin-top:18px}
+#msg .after{margin-top:60px}
+#msg .after .btn{font-size:16px;padding:10px 18px;min-width:0}
+#msg .after .warnline{color:var(--danger);font-size:16px;margin-bottom:10px}
 #msg .btns{justify-content:center;margin-top:26px}
 #msg .btn{font-size:22px;padding:18px 34px;min-width:200px}
 
@@ -128,51 +131,43 @@ table.log th{color:var(--muted);font-weight:600}
  <div class="wrap">
   <button class="back" id="backBtn">‹ Session page</button>
   <h1>Storytelling task</h1>
-  <p class="sub">NCC Lab · ATHENA ADHD study. Two short films and two spoken stories, one at a time in random order. After each one the participant retells it while a timer counts down.</p>
 
   <div class="card">
-   <h2>Participant</h2>
-   <label class="row"><span>Participant ID</span><input id="pid" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="e.g. P001"></label>
-   <label class="row"><span>Notes (optional)</span><input id="notes" autocomplete="off"></label>
-   <div class="fromsess hidden" id="fromSession">Set on the session page. To change the participant, go back and end the session there.</div>
-   <div class="summary" id="orderBox"></div>
+   <div class="who hidden" id="whoLine"></div>
+   <div id="pidFields">
+    <label class="row"><span>Participant ID</span><input id="pid" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="e.g. P001"></label>
+   </div>
+   <div class="status" id="mediaLine"></div>
+   <div class="status warn hidden" id="nonDefault">Some settings differ from the defaults.</div>
    <div class="err" id="setupErr"></div>
+   <div class="btns"><button class="btn primary big" id="startBtn">Start</button></div>
   </div>
 
-  <div class="card">
+  <details class="card more" id="moreBox"><summary>Films, settings and checks</summary>
    <h2>Films and stories on this iPad</h2>
    <div id="slots"></div>
-   <p class="sub" style="margin:10px 0 0">These come with the app. The first time the task opens on an iPad it downloads them (about 75 MB, so use Wi-Fi) and keeps them, so sessions don't need the internet. Turn the iPad volume up and press Test to check each one.</p>
+   <p class="sub" style="margin:10px 0 0">These come with the app. The first time the task opens on an iPad it downloads them (about 75 MB, so use Wi-Fi) and keeps them. Press Test to check each one plays and the volume is right.</p>
    <div class="btns"><button class="btn small" id="redownloadBtn">Download again</button></div>
-  </div>
-
-  <div class="card">
-   <h2>Design <span id="nonDefault" class="badge hidden">non-default settings</span></h2>
+   <h2>Order for this participant</h2>
+   <div class="summary" id="orderBox"></div>
+   <h2>Design</h2>
    <div class="summary" id="designSummary"></div>
-   <details style="margin-top:10px"><summary>Advanced settings</summary>
+   <details style="margin-top:10px"><summary>Change settings</summary>
      <div id="advanced"></div>
      <div class="btns"><button class="btn small" id="resetDefaults">Reset to defaults</button></div>
    </details>
-  </div>
-
-  <div class="card">
    <h2>Checks</h2>
    <div class="summary" id="envSummary"></div>
    <div class="btns">
-     <button class="btn" id="previewBtn">Check layout &amp; size</button>
-     <button class="btn" id="fsBtn">Full screen</button>
+     <button class="btn small" id="previewBtn">Check layout &amp; size</button>
+     <button class="btn small" id="fsBtn">Full screen</button>
    </div>
-  </div>
-
-  <div class="card hidden" id="savedCard">
-   <h2>Saved sessions on this iPad</h2>
-   <div id="savedList"></div>
-  </div>
-
-  <div class="btns" style="margin-top:6px">
-    <button class="btn primary" id="startBtn" style="font-size:20px;padding:16px 40px">Start session</button>
-  </div>
-  <p class="sub" style="margin-top:22px">During playback or the countdown: press and hold the top centre of the screen for 1 s for the experimenter menu (or press Esc on a keyboard).</p>
+   <div class="hidden" id="savedCard">
+    <h2>Saved runs of this task on this iPad</h2>
+    <div id="savedList"></div>
+   </div>
+  </details>
+  <p class="sub">To pause during the task, press and hold the top centre of the screen for 1 s (or press Esc on a keyboard).</p>
  </div>
 </div>
 
@@ -227,11 +222,11 @@ table.log th{color:var(--muted);font-weight:600}
 <script src="../session.js"></script>
 <script>
 'use strict';
-const VERSION = '1.2.0';
+const VERSION = '1.3.0';
 /* ---------------- parameters (URL query can override, e.g. ?retellSec=45) ---------------- */
 const DEFAULTS = {
-  retellSec: 30,          // time to retell each film/story
-  retellDelayMs: 0,       // gap between the end of the film/story and the retell timer
+  retellSec: 60,          // time to retell each film/story
+  retellDelayMs: 2000,    // blank pause between the end of the film/story and the retell screen
   doneMs: 2000,           // "Time's up" message after each retell
   syncFlashMs: 150,       // each corner flash: on for this long, then off for this long
   startFlashes: 3,        // flashes at playback start and at retell start
@@ -240,7 +235,7 @@ const DEFAULTS = {
   seed: ''                // order seed; blank = participant ID
 };
 const PARAM_META = [
-  ['retellSec','Retell time (s)','int',5,600,1], ['retellDelayMs','Gap before retell timer (ms)','int',0,10000,100],
+  ['retellSec','Retell time (s)','int',5,600,1], ['retellDelayMs','Pause before the retell (ms)','int',0,10000,100],
   ['doneMs','"Time\'s up" message (ms)','int',0,10000,100],
   ['syncFlashMs','Corner patch on-time (ms)','int',50,1000,10], ['startFlashes','Flashes per event','int',1,10,1],
   ['patchCm','Corner patch size (cm)','num',1,6,0.5], ['pxPerCm','Screen scale (px per cm)','num',20,120,0.5],
@@ -257,14 +252,18 @@ const SLOTS = [
 /* participant-facing text (edit freely) */
 const TEXT = {
   intro: () => `<p>You'll watch <b>2 short films</b> and listen to <b>2 short stories</b>, one at a time.</p>
-     <p>After each one, tell us what happened. You'll have ${P.retellSec} seconds, and a timer will count down.</p>
-     <p class="small">Sit comfortably. There's nothing to press.</p>`,
+     <p>After each one, tell us what happened. You'll have ${retellTime()}, and a timer will count down.</p>`,
+  next: kind => kind === 'video' ? "Next, you'll watch a short film." : "Next, you'll listen to a story.",
+  ready: () => "Tap Start when you're ready.",
   listen: () => 'Listen to the story',
   retellTitle: kind => kind === 'video' ? 'Tell us what happened in the film.' : 'Tell us what happened in the story.',
-  retellSub: () => `You have ${P.retellSec} seconds. Keep going until the timer ends.`,
+  retellSub: () => 'Keep going until the timer runs out.',
   timesUp: () => "Time's up. Thank you!",
-  end: () => `<p class="big">All done. Thank you!</p>`
+  end: () => `<p class="big">All done. Thank you!</p>`,
+  problem: () => `<p>Sorry, that didn't play.</p><p class="small">Please tell the researcher.</p>`
 };
+const retellTime = () => P.retellSec % 60 === 0 ? `${P.retellSec/60} minute${P.retellSec === 60 ? '' : 's'}` : `${P.retellSec} seconds`;
+const clockText = sec => P.retellSec >= 60 ? `${Math.floor(sec/60)}:${String(sec % 60).padStart(2, '0')}` : String(sec);
 
 /* ---------------- utilities ---------------- */
 const $ = id => document.getElementById(id);
@@ -410,8 +409,25 @@ function slotInfo(id){
   return {cls: 'missing', text: 'Not on this iPad yet'};
 }
 function showSlotInfo(id){
-  const el = document.querySelector(`#slots .file[data-slot="${id}"]`); if (!el) return;
-  const i = slotInfo(id); el.textContent = i.text; el.className = 'file ' + i.cls;
+  const el = document.querySelector(`#slots .file[data-slot="${id}"]`);
+  if (el){ const i = slotInfo(id); el.textContent = i.text; el.className = 'file ' + i.cls; }
+  renderMediaLine();
+}
+function renderMediaLine(){
+  const have = SLOTS.filter(s => media[s.id]).length, failed = SLOTS.some(s => dl[s.id] && dl[s.id].state === 'error');
+  const cur = SLOTS.map(s => dl[s.id]).find(d => d && d.state === 'downloading');
+  let cls = 'warn', text;
+  if (have === SLOTS.length && !failed){
+    const bad = SLOTS.some(s => !Number.isFinite(media[s.id].duration));
+    if (bad) text = "Films and stories: this browser can't play them. Use Safari on the iPad.";
+    else { cls = 'ok'; text = 'Films and stories: ready on this iPad.'; }
+  } else if (syncing || cur){
+    text = `Downloading the films and stories (${have} of ${SLOTS.length} done` + (cur && cur.total ? `, next one ${Math.floor(100*cur.got/cur.total)}%` : '') + ')…';
+  } else {
+    text = 'Films and stories: not all downloaded. Connect to Wi-Fi, then open "Films, settings and checks" below and press Download again.';
+    if (failed) $('moreBox').open = true;
+  }
+  $('mediaLine').textContent = text; $('mediaLine').className = 'status ' + cls;
 }
 function renderSlots(){
   const box = $('slots'); box.innerHTML = '';
@@ -464,7 +480,7 @@ function updateSummary(){
   const est = total + SLOTS.length*(P.retellSec + P.retellDelayMs/1000 + P.doneMs/1000 + 2*P.startFlashes*P.syncFlashMs/1000*2);
   $('designSummary').innerHTML =
     `4 trials: 2 films and 2 stories, in a random order set by the participant ID.<br>` +
-    `Each trial: the experimenter sees what's next and presses Start → the film or story plays → the participant has <b>${P.retellSec} s</b> to retell it, with a countdown.<br>` +
+    `Each trial: Start → the film or story plays → ${(P.retellDelayMs/1000).toFixed(1)} s pause → the participant has <b>${P.retellSec} s</b> to retell it, with a countdown.<br>` +
     `Sync: both corner patches flash ${P.startFlashes}× (${P.syncFlashMs} ms on/off) when playback starts and when the retell timer starts.<br>` +
     `Estimated time: ≈ ${(est/60).toFixed(1)} min plus instructions${SLOTS.every(s => media[s.id]) ? '' : ' (once all the files are downloaded)'}.`;
   updateOrder();
@@ -472,9 +488,9 @@ function updateSummary(){
 function updateOrder(){
   const id = $('pid').value.trim();
   const seedStr = (P.seed && P.seed.trim()) || id;
-  if (!seedStr){ $('orderBox').innerHTML = '<span style="color:var(--muted)">Enter an ID to see this participant\'s order.</span>'; return; }
+  if (!seedStr){ $('orderBox').innerHTML = '<span style="color:var(--muted)">Enter an ID to see the order.</span>'; return; }
   const ord = seededOrder(seedStr);
-  $('orderBox').innerHTML = 'Order for this participant:<div class="order">' + ord.map((s,i) => `<span>${i+1}. ${esc(labelOf(s))}</span>`).join('') + '</div>';
+  $('orderBox').innerHTML = '<div class="order">' + ord.map((s,i) => `<span>${i+1}. ${esc(labelOf(s))}</span>`).join('') + '</div>';
 }
 function updateEnv(){
   const standalone = window.navigator.standalone === true || matchMedia('(display-mode: standalone)').matches;
@@ -508,7 +524,8 @@ function showOnly(id){ for (const e of ['vid','listen','retell','done']) $(e).cl
 function showScreen(id){ for (const s of ['setup','msg','stage']) $(s).classList.toggle('hidden', s !== id); }
 function message({title='', body='', buttons=[], note=''}){
   showScreen('msg');
-  $('msgTitle').textContent = title; $('msgBody').innerHTML = body; $('msgNote').innerHTML = note; $('msgExtra').innerHTML = '';
+  $('msgTitle').textContent = title; $('msgTitle').classList.toggle('hidden', !title);
+  $('msgBody').innerHTML = body; $('msgNote').innerHTML = note; $('msgExtra').innerHTML = '';
   const box = $('msgBtns'); box.innerHTML = '';
   for (const b of buttons){
     const el = document.createElement('button'); el.className = 'btn' + (b.primary ? ' primary' : '') + (b.small ? ' small' : '');
@@ -554,7 +571,7 @@ function csvText(d){
   const m = d.meta;
   const head = [
     `# task=${m.task} version=${m.version} participant=${m.participant} visit=${m.visit || ''} session=${m.session} started=${m.started_iso}`,
-    `# order=${m.order.join(' ')} seed=${m.seed} hand=${m.hand || ''} notes=${(m.notes||'').replace(/[\r\n]+/g,' ')}`,
+    `# order=${m.order.join(' ')} seed=${m.seed} hand=${m.hand || ''}`,
     `# media=${JSON.stringify(m.media)}`,
     `# params=${JSON.stringify(m.params)}`,
     `# device=${JSON.stringify(m.device)}`,
@@ -628,7 +645,7 @@ async function startSession(){
   const now = new Date(), seedStr = (P.seed && P.seed.trim()) || id;
   const order = seededOrder(seedStr);
   const sess = SESSION && SESSION.participant === id ? SESSION : null;
-  S = { meta: {task:'storytelling', version: VERSION, participant: id, hand: sess ? sess.hand : '', notes: $('notes').value.trim(),
+  S = { meta: {task:'storytelling', version: VERSION, participant: id, hand: sess ? sess.hand : '',
           visit: sess ? sess.visit : '', session: stamp(now), started_local: now.toLocaleString(), started_iso: now.toISOString(), seed: seedStr,
           order: order.map(labelOf), params: {...P},
           media: Object.fromEntries(SLOTS.map(s => [s.id, {label: labelOf(s.id), file: media[s.id].name, bytes: media[s.id].size, duration_s: r1(media[s.id].duration)}])),
@@ -637,17 +654,14 @@ async function startSession(){
   S.lsKey = LS_PREFIX + 'session:' + S.meta.session + ':' + id;
   log('session_start', {detail: 'order: ' + S.meta.order.join(' > ')});
   requestWakeLock(); layout();
-  message({title: 'Films and stories', body: TEXT.intro(), buttons: [{label:'Continue', primary:true, onClick: () => trialPreview()}]});
+  message({body: TEXT.intro(), buttons: [{label:'Continue', primary:true, onClick: () => trialPreview()}]});
 }
 function trialPreview(){
   S.state = 'preview'; S.cur = null;
   if (S.idx >= S.order.length){ endSession(); return; }
-  const slotId = S.order[S.idx], s = slotById(slotId), m = media[slotId];
-  const next = S.idx + 1 < S.order.length ? `Then: ${esc(labelOf(S.order[S.idx+1]))}` : 'This is the last one.';
-  message({title: `Trial ${S.idx+1} of ${S.order.length}`,
-    body: `<div class="next"><div class="k">Next ${s.kind === 'video' ? 'film' : 'story'}</div><div class="v">${esc(labelOf(slotId))}</div>` +
-          `<div class="d">${esc(m.name)} · ${fmtDur(m.duration)}</div></div>`,
-    note: `Experimenter: press Start when the participant is ready. ${next}`,
+  // Participant-facing: says only whether a film or a story comes next.
+  const slotId = S.order[S.idx], s = slotById(slotId);
+  message({body: `<p class="big">${TEXT.next(s.kind)}</p><p class="small">${TEXT.ready()}</p>`,
     buttons: [{label: 'Start', primary: true, onClick: () => startTrial(slotId)}]});
 }
 function startTrial(slotId){
@@ -676,18 +690,20 @@ function startTrial(slotId){
 }
 function mediaFailed(why){
   stopMedia();
-  message({title: `Trial ${S.idx+1}: problem`, body: `<p>${esc(why)}</p><p class="small">Check the file on the setup screen. You can try again or skip this trial.</p>`,
-    buttons: [{label:'Try again', primary:true, onClick: () => trialPreview()}, {label:'Skip this trial', onClick: () => { log('trial_skipped'); S.idx++; trialPreview(); }}]});
+  log('media_problem', {detail: why});
+  message({body: TEXT.problem(),
+    buttons: [{label:'Try again', primary:true, onClick: () => trialPreview()}, {label:'Skip', onClick: () => { log('trial_skipped'); S.idx++; trialPreview(); }}]});
 }
 function stopMedia(){ for (const el of [$('vid'), $('aud')]){ el.onplaying = el.onended = el.onerror = null; try { el.pause(); } catch(e){} } }
 async function startRetell(){
   const tr = S.cur; if (!tr) return;
   stopMedia(); S.state = 'retell-wait';
-  $('retellT1').textContent = TEXT.retellTitle(tr.kind); $('retellT2').textContent = TEXT.retellSub();
-  $('clock').textContent = String(P.retellSec); $('barFill').style.width = '100%';
-  showOnly('retell');
+  showOnly(null);                                        // blank screen for the pause
   if (P.retellDelayMs > 0) await new Promise(r => setTimeout(r, P.retellDelayMs));
   if (S.cur !== tr || S.state !== 'retell-wait') return;
+  $('retellT1').textContent = TEXT.retellTitle(tr.kind); $('retellT2').textContent = TEXT.retellSub();
+  $('clock').textContent = clockText(P.retellSec); $('barFill').style.width = '100%';
+  showOnly('retell');                                    // appears with retell flash 1
   S.state = 'retell';
   const tStart = await flashes('retell start');        // timer starts on flash 1
   if (S.cur !== tr || S.state !== 'retell') return;
@@ -702,7 +718,7 @@ function runCountdown(tr){
   const tick = now => {
     if (S.cur !== tr || S.state !== 'retell') return;
     const left = Math.max(0, total - (now - tr.retellStart));
-    $('clock').textContent = String(Math.ceil(left/1000));
+    $('clock').textContent = clockText(Math.ceil(left/1000));
     $('barFill').style.width = (100*left/total).toFixed(2) + '%';
     if (left <= 0){ finishRetell(now); return; }
     requestAnimationFrame(tick);
@@ -719,22 +735,19 @@ function endSession(){
   if (!S) return;
   stopMedia(); flashRun = null; setFlash(false); $('menu').classList.add('hidden');
   S.cur = null; S.status = S.endedEarly ? 'ended early' : 'finished'; log('session_end'); S.state = 'ended'; releaseWakeLock();
-  message({title: 'Finished', body: TEXT.end()});
-  const trials = {};
-  for (const r of S.rows) if (r.trial !== ''){ const t = trials[r.trial] = trials[r.trial] || {label: r.label, kind: r.kind}; if (r.event === 'media_playing') t.play = true; if (r.event === 'retell_end') t.retell = true; if (r.event === 'trial_skipped') t.skipped = true; }
-  let tbl = '<tr><th>Trial</th><th>Film / story</th><th>Played</th><th>Retell</th></tr>';
-  for (const n of Object.keys(trials).sort((a,b) => a-b)){ const t = trials[n];
-    tbl += `<tr><td>${n}</td><td>${esc(t.label)}</td><td>${t.play ? 'yes' : 'no'}</td><td>${t.retell ? 'yes' : (t.skipped ? 'skipped' : 'no')}</td></tr>`; }
-  const card = document.createElement('div'); card.className = 'card'; card.style.textAlign = 'left'; card.style.marginTop = '24px';
-  card.innerHTML = `<h2>Experimenter · ${esc(S.meta.participant)} · session ${esc(S.meta.session)}</h2><table class="log">${tbl}</table><p class="sub" style="margin-top:12px">${S.saveOk ? 'A copy is also kept on this iPad (see the session page) until deleted.' : '<span style="color:var(--danger)">The backup copy on this iPad could not be saved (storage full). Save the CSV now, then delete old exported runs from the session page.</span>'}</p>`;
-  const btns = document.createElement('div'); btns.className = 'btns';
+  message({body: TEXT.end()});
+  const after = document.createElement('div'); after.className = 'after';
+  if (!S.saveOk) after.innerHTML = '<div class="warnline">The copy on this iPad could not be saved (storage full). Press Save data now.</div>';
+  const btns = document.createElement('div'); btns.className = 'btns'; btns.style.justifyContent = 'center';
+  const add = (label, fn) => { const b = document.createElement('button'); b.className = 'btn small'; b.textContent = label; b.onclick = fn; btns.appendChild(b); };
   const key = S.lsKey, name = csvName(S.meta);
-  const b1 = document.createElement('button'); b1.className = 'btn primary'; b1.textContent = 'Save CSV…'; b1.onclick = () => exportCsv(name, currentCsv(), key);
-  const b2 = document.createElement('button'); b2.className = 'btn'; b2.textContent = 'Download CSV'; b2.onclick = () => downloadCsv(name, currentCsv(), key);
-  const b3 = document.createElement('button'); b3.className = 'btn';
-  if (SESSION){ b3.textContent = 'Back to session page'; b3.onclick = () => location.assign('../'); }
-  else { b3.textContent = 'New participant'; b3.onclick = () => { S = null; $('pid').value = ''; $('notes').value = ''; showScreen('setup'); renderSaved(); updateSummary(); updateEnv(); }; }
-  btns.append(b1, b2, b3); card.appendChild(btns); $('msgExtra').appendChild(card);
+  if (SESSION && S.saveOk) add('Back to session page', () => location.assign('../'));
+  else {
+    add('Save data…', () => exportCsv(name, currentCsv(), key));
+    if (SESSION) add('Back to session page', () => location.assign('../'));
+    else add('New participant', () => { S = null; $('pid').value = ''; showScreen('setup'); renderSaved(); updateSummary(); updateEnv(); });
+  }
+  after.appendChild(btns); $('msgExtra').appendChild(after);
 }
 
 /* ---------------- experimenter menu ---------------- */
@@ -745,7 +758,7 @@ function openMenu(reason){
   if (inMedia && tr.el) tr.el.pause();
   const prevState = S.state; S.state = 'menu';
   log('menu_opened', {mt: tr.el ? tr.el.currentTime : null, detail: reason || ''});
-  $('menuInfo').innerHTML = `Trial ${tr.n} of ${S.order.length}: ${esc(tr.label)} (${inMedia ? 'playing, now paused' : 'retell'}).`;
+  $('menuInfo').textContent = inMedia ? 'Playback is paused.' : 'The countdown keeps running while this is open.';
   const box = $('menuBtns'); box.innerHTML = '';
   const add = (label, cls, fn) => { const b = document.createElement('button'); b.className = 'btn' + (cls ? ' ' + cls : ''); b.textContent = label; b.onclick = () => { $('menu').classList.add('hidden'); fn(); }; box.appendChild(b); };
   const resume = () => {
@@ -773,7 +786,7 @@ let previewMode = false;
 function layoutCheck(){
   P = currentParams(); previewMode = true; showScreen('stage'); layout(); setFlash(true); showOnly('retell');
   $('retellT1').textContent = 'Layout check'; $('retellT2').textContent = 'Both corner squares should be visible to the cameras. Tap anywhere to close.';
-  $('clock').textContent = String(P.retellSec); $('barFill').style.width = '100%';
+  $('clock').textContent = clockText(P.retellSec); $('barFill').style.width = '100%';
 }
 
 /* ---------------- input ---------------- */
@@ -800,9 +813,10 @@ $('pid').addEventListener('input', updateOrder);
 $('backBtn').onclick = () => location.assign('../');
 const SESSION = window.Session ? Session.current() : null;     // participant set on the session page
 if (SESSION){
-  $('pid').value = SESSION.participant; $('pid').readOnly = true;
-  $('notes').value = SESSION.notes || ''; $('notes').readOnly = true;
-  $('fromSession').classList.remove('hidden');
+  $('pid').value = SESSION.participant;
+  $('pidFields').classList.add('hidden');
+  $('whoLine').innerHTML = `${esc(SESSION.participant)}<small>${SESSION.hand === 'left' ? 'left' : 'right'} hand</small>`;
+  $('whoLine').classList.remove('hidden');
 }
 $('startBtn').onclick = startSession;
 $('previewBtn').onclick = layoutCheck;

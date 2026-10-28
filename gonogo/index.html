@@ -67,12 +67,15 @@ details summary{cursor:pointer;color:#ddd;font-size:16px;padding:4px 0}
 .btns{display:flex;flex-wrap:wrap;gap:12px;margin-top:10px}
 .err{color:var(--danger);font-size:15px;min-height:20px;margin-top:6px}
 .back{display:inline-block;margin:4px 0 6px;font-size:16px;color:var(--accent);background:none;border:0;padding:6px 0;font:inherit;cursor:pointer}
-.fromsess{font-size:14px;color:var(--muted);margin-top:4px}
-input[readonly],select:disabled{color:#bbb;background:#151515;opacity:1}
-table.stats{border-collapse:collapse;width:100%;font-size:15px;font-variant-numeric:tabular-nums}
-table.stats th,table.stats td{text-align:right;padding:6px 8px;border-bottom:1px solid var(--line)}
-table.stats th:first-child,table.stats td:first-child{text-align:left}
-table.stats th{color:var(--muted);font-weight:600}
+.who{font-size:30px;font-weight:700}
+.who small{font-size:18px;font-weight:500;color:#ccc;margin-left:10px}
+.status{font-size:16px;margin-top:10px;color:#ccc}
+.status.warn{color:var(--warn)}
+.btn.big{font-size:22px;padding:16px 48px}
+details.more{padding:12px 18px}
+details.more > summary{font-size:16px;color:#ccc}
+details.more[open] > summary{margin-bottom:6px}
+details.more h2{margin-top:18px}
 .sess{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:8px 0;border-bottom:1px solid var(--line);font-size:15px}
 .sess:last-child{border-bottom:0}
 .sess .grow{flex:1;min-width:180px}
@@ -91,6 +94,9 @@ table.stats th{color:var(--muted);font-weight:600}
 #msg .body .rule .kbd{margin-right:14px}
 #msg .body .small{font-size:21px;color:#bbb;margin-top:22px}
 #msg .note{font-size:16px;color:var(--muted);margin-top:18px}
+#msg .after{margin-top:60px}
+#msg .after .btn{font-size:16px;padding:10px 18px;min-width:0}
+#msg .after .warnline{color:var(--danger);font-size:16px;margin-bottom:10px}
 #msg .btns{justify-content:center;margin-top:26px}
 #msg .btn{font-size:22px;padding:18px 34px;min-width:200px}
 .kbd{display:inline-block;font-weight:800;font-size:1.15em;border:2px solid #777;border-radius:8px;padding:0 10px;margin:0 3px}
@@ -127,46 +133,40 @@ table.stats th{color:var(--muted);font-weight:600}
 <div id="setup" class="screen ui">
  <div class="wrap">
   <button class="back" id="backBtn">‹ Session page</button>
-  <h1>Go/No-Go reach task</h1>
-  <p class="sub">NCC Lab · ATHENA ADHD study. Place the iPad flat with the bottom of the screen toward the participant, and lock rotation before starting.</p>
+  <h1>Go/no-go reach task</h1>
 
   <div class="card">
-   <h2>Participant</h2>
-   <label class="row"><span>Participant ID</span><input id="pid" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="e.g. P001"></label>
-   <label class="row"><span>Hand used</span>
-     <select id="hand"><option value="right">Right</option><option value="left">Left</option></select></label>
-   <label class="row"><span>Notes (optional)</span><input id="notes" autocomplete="off" placeholder="e.g. medication taken 9:30"></label>
-   <div class="fromsess hidden" id="fromSession">Set on the session page. To change the participant, go back and end the session there.</div>
+   <div class="who hidden" id="whoLine"></div>
+   <div id="pidFields">
+    <label class="row"><span>Participant ID</span><input id="pid" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="e.g. P001"></label>
+    <label class="row"><span>Hand used</span>
+      <select id="hand"><option value="right">Right</option><option value="left">Left</option></select></label>
+   </div>
+   <div class="status">iPad flat, bottom of the screen toward the participant, rotation locked.</div>
+   <div class="status warn hidden" id="nonDefault">Some settings differ from the defaults.</div>
    <div class="err" id="setupErr"></div>
+   <div class="btns"><button class="btn primary big" id="startBtn">Start</button></div>
   </div>
 
-  <div class="card">
-   <h2>Design <span id="nonDefault" class="badge hidden">non-default settings</span></h2>
+  <details class="card more"><summary>Settings and checks</summary>
+   <h2>Design</h2>
    <div class="summary" id="designSummary"></div>
-   <details style="margin-top:10px"><summary>Advanced settings</summary>
+   <details style="margin-top:10px"><summary>Change settings</summary>
      <div id="advanced"></div>
      <div class="btns"><button class="btn small" id="resetDefaults">Reset to defaults</button></div>
    </details>
-  </div>
-
-  <div class="card">
    <h2>Checks</h2>
    <div class="summary" id="envSummary"></div>
    <div class="btns">
-     <button class="btn" id="previewBtn">Check layout &amp; size</button>
-     <button class="btn" id="fsBtn">Full screen</button>
+     <button class="btn small" id="previewBtn">Check layout &amp; size</button>
+     <button class="btn small" id="fsBtn">Full screen</button>
    </div>
-  </div>
-
-  <div class="card hidden" id="savedCard">
-   <h2>Saved sessions on this iPad</h2>
-   <div id="savedList"></div>
-  </div>
-
-  <div class="btns" style="margin-top:6px">
-    <button class="btn primary" id="startBtn" style="font-size:20px;padding:16px 40px">Start session</button>
-  </div>
-  <p class="sub" style="margin-top:22px">During the task: press and hold the grey code strip at the top centre of the screen for 1 s to pause (or press Esc on a keyboard). On a laptop, the space bar acts as a tap on the circle.</p>
+   <div class="hidden" id="savedCard">
+    <h2>Saved runs of this task on this iPad</h2>
+    <div id="savedList"></div>
+   </div>
+  </details>
+  <p class="sub">To pause during the task, press and hold the grey code strip at the top centre of the screen for 1 s (or press Esc on a keyboard). On a laptop, the space bar acts as a tap on the circle.</p>
  </div>
 </div>
 
@@ -220,7 +220,7 @@ table.stats th{color:var(--muted);font-weight:600}
    (the start position isn't tracked, so the onset must not be predictable).
    Any parameter can be overridden with a URL query, e.g. ?postMs=1750&blocks=3
    ===================================================================== */
-const VERSION = '1.3.0';
+const VERSION = '1.4.0';
 const DEFAULTS = {
   goLetter: 'X',          // go stimulus
   nogoLetter: 'A',        // no-go stimulus
@@ -502,7 +502,7 @@ function clearStage(){ setFlash(false); setCode(null); setTnum(null); showFix(fa
 function showScreen(id){ for (const s of ['setup','msg','stage']) $(s).classList.toggle('hidden', s !== id); }
 function message({title='', body='', buttons=[], note=''}){
   showScreen('msg');
-  $('msgTitle').textContent = title; $('msgBody').innerHTML = body; $('msgNote').innerHTML = note; $('msgExtra').innerHTML = '';
+  $('msgTitle').textContent = title; $('msgTitle').classList.toggle('hidden', !title); $('msgBody').innerHTML = body; $('msgNote').innerHTML = note; $('msgExtra').innerHTML = '';
   const box = $('msgBtns'); box.innerHTML = '';
   buttons.forEach(b => {
     const el = document.createElement('button'); el.className = 'btn' + (b.primary ? ' primary' : '');
@@ -530,7 +530,7 @@ function startSession(){
   const seedStr = (P.seed && P.seed.trim()) ? P.seed.trim() : id;
   S = {
     meta: {
-      task: 'gonogo-reach', version: VERSION, participant: id, hand: $('hand').value, notes: $('notes').value.trim(),
+      task: 'gonogo-reach', version: VERSION, participant: id, hand: $('hand').value,
       visit: SESSION && SESSION.participant === id ? SESSION.visit : '', session: stamp(now), started_local: now.toLocaleString(), started_iso: now.toISOString(),
       seed: seedStr, params: {...P},
       device: {ua: navigator.userAgent, w: innerWidth, h: innerHeight, dpr: window.devicePixelRatio || 1,
@@ -563,8 +563,7 @@ function startTestBlock(k){
 function practiceDone(st){
   const body = `<p>Practice done. From now on there are no messages after each letter.</p>` + feedbackHtml(st);
   message({title:'Practice', body,
-    note:'Experimenter: repeat the practice if the instructions were not followed.',
-    buttons:[{label:'Repeat practice', onClick: startPractice},
+    buttons:[{label:'Practice again', onClick: startPractice},
              {label: P.blocks > 1 ? `Start part 1 of ${P.blocks}` : 'Start task', primary:true, onClick: () => startTestBlock(1)}]});
 }
 function feedbackHtml(st){
@@ -587,27 +586,18 @@ function endSession(){
   S.status = S.endedEarly ? 'ended early' : 'finished';
   autosave();
   showScreen('msg');
-  const all = S.rows.filter(r => r.type !== 'sync');
-  const byBlock = {};
-  all.forEach(r => { (byBlock[r.block_label] = byBlock[r.block_label] || []).push(r); });
-  let tbl = statsHeader();
-  for (const lbl of Object.keys(byBlock)) tbl += statsRow(computeStats(byBlock[lbl], lbl));
-  const test = all.filter(r => r.block > 0);
-  if (test.length) tbl += statsRow(computeStats(test, 'All test'));
-  message({title:'Finished', body: TEXT.end(), buttons:[], note:''});
-  const box = $('msgExtra');
-  const card = document.createElement('div'); card.className = 'card'; card.style.textAlign = 'left'; card.style.marginTop = '24px'; card.style.width = '100%';
-  card.innerHTML = `<h2>Experimenter · ${esc(S.meta.participant)} · session ${esc(S.meta.session)}</h2><table class="stats">${tbl}</table><p class="sub" style="margin-top:12px">${S.saveOk ? 'A copy is also kept on this iPad (see the session page) until deleted.' : '<span style="color:var(--danger)">The backup copy on this iPad could not be saved (storage full). Save the CSV now, then delete old exported runs from the session page.</span>'}</p>`;
-  const btns = document.createElement('div'); btns.className = 'btns';
-  const b1 = document.createElement('button'); b1.className = 'btn primary'; b1.textContent = 'Save CSV…';
-  b1.onclick = () => exportCsv(csvName(S.meta), currentCsv(), S.lsKey);
-  const b2 = document.createElement('button'); b2.className = 'btn'; b2.textContent = 'Download CSV';
-  b2.onclick = () => downloadCsv(csvName(S.meta), currentCsv(), S.lsKey);
-  const b3 = document.createElement('button'); b3.className = 'btn';
-  if (SESSION){ b3.textContent = 'Back to session page'; b3.onclick = () => location.assign('../'); }
-  else { b3.textContent = 'New participant'; b3.onclick = () => { S = null; $('pid').value = ''; $('notes').value = ''; showScreen('setup'); renderSaved(); updateEnv(); }; }
-  btns.append(b1, b2, b3); card.appendChild(btns);
-  box.appendChild(card);
+  message({title:'', body: TEXT.end(), buttons:[], note:''});
+  const after = document.createElement('div'); after.className = 'after';
+  if (!S.saveOk) after.innerHTML = '<div class="warnline">The copy on this iPad could not be saved (storage full). Press Save data now.</div>';
+  const btns = document.createElement('div'); btns.className = 'btns'; btns.style.justifyContent = 'center';
+  const add = (label, fn) => { const b = document.createElement('button'); b.className = 'btn small'; b.textContent = label; b.onclick = fn; btns.appendChild(b); };
+  if (SESSION && S.saveOk) add('Back to session page', () => location.assign('../'));
+  else {
+    add('Save data…', () => exportCsv(csvName(S.meta), currentCsv(), S.lsKey));
+    if (SESSION) add('Back to session page', () => location.assign('../'));
+    else add('New participant', () => { S = null; $('pid').value = ''; showScreen('setup'); renderSaved(); updateEnv(); });
+  }
+  after.appendChild(btns); $('msgExtra').appendChild(after);
 }
 
 /* ---------- block engine ---------- */
@@ -765,11 +755,6 @@ function computeStats(rows, label){
     meanRt: m, sdRt: s, cv: s/m, medRt: median(rts),
     premature: rows.filter(r => Number(r.premature_n) > 0).length};
 }
-function statsHeader(){ return `<tr><th>Block</th><th>Trials</th><th>Mean RT (ms)</th><th>SD (ms)</th><th>CV</th><th>Missed go</th><th>No-go errors</th><th>Early touches</th></tr>`; }
-function statsRow(st){
-  const f = x => Number.isFinite(x) ? Math.round(x) : '–';
-  return `<tr><td>${esc(st.label)}</td><td>${st.n}</td><td>${f(st.meanRt)}</td><td>${f(st.sdRt)}</td><td>${Number.isFinite(st.cv) ? st.cv.toFixed(2) : '–'}</td><td>${st.omissions}/${st.goN}</td><td>${st.commissions}/${st.nogoN}</td><td>${st.premature}</td></tr>`;
-}
 
 /* ---------- pause ---------- */
 function pause(reason){
@@ -824,7 +809,7 @@ function csvText(d){
   const m = d.meta;
   const head = [
     `# task=${m.task} version=${m.version} participant=${m.participant} visit=${m.visit || ''} session=${m.session} started=${m.started_iso}`,
-    `# hand=${m.hand} seed=${m.seed} notes=${(m.notes||'').replace(/[\r\n]+/g,' ')}`,
+    `# hand=${m.hand} seed=${m.seed}`,
     `# params=${JSON.stringify(m.params)}`,
     `# device=${JSON.stringify(m.device)}`,
     `# times in ms from page load (performance.now); onset = animation frame in which the letter and corner patches were drawn; rt = touch time - onset; touch x/y in cm from circle centre (+y = away from participant)`
@@ -917,10 +902,11 @@ $('pid').addEventListener('keydown', e => { if (e.key === 'Enter') startSession(
 URLP = readUrlParams();
 const SESSION = window.Session ? Session.current() : null;     // participant set on the session page
 if (SESSION){
-  $('pid').value = SESSION.participant; $('pid').readOnly = true;
-  $('hand').value = SESSION.hand === 'left' ? 'left' : 'right'; $('hand').disabled = true;
-  $('notes').value = SESSION.notes || ''; $('notes').readOnly = true;
-  $('fromSession').classList.remove('hidden');
+  $('pid').value = SESSION.participant;
+  $('hand').value = SESSION.hand === 'left' ? 'left' : 'right';
+  $('pidFields').classList.add('hidden');
+  $('whoLine').innerHTML = `${esc(SESSION.participant)}<small>${SESSION.hand === 'left' ? 'left' : 'right'} hand</small>`;
+  $('whoLine').classList.remove('hidden');
 }
 renderAdvanced(); updateSummary(); updateEnv(); renderSaved(); measureRefresh();
 window.__gng = { get S(){ return S; }, get B(){ return B; }, get P(){ return P; }, L, csvText, computeStats };

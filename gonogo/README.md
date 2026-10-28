@@ -15,7 +15,7 @@ Everything is in one file, `index.html`. It needs no internet once it has loaded
   - a fixation cross for a random 500–2000 ms (uniform, so 1250 ms on average)
   - the letter stays up until a tap, or for 1500 ms
   - the next fixation cross appears 2000 ms after the letter, whatever the response
-- **Why the fixation time is random:** we don't track whether the hand is on the start mark, so the letter onset must not be predictable, or people will start moving early. Each trial's fixation time is drawn at random from 500–2000 ms, all values equally likely. Advanced settings also offer an exponential distribution, which makes late onsets harder to anticipate; the data file records which one was used.
+- **Why the fixation time is random:** we don't track whether the hand is on the start mark, so the letter onset must not be predictable, or people will start moving early. Each trial's fixation time is drawn at random from 500–2000 ms, all values equally likely. The settings also offer an exponential distribution, which makes late onsets harder to anticipate; the data file records which one was used.
 - **Why the timing is longer than STOP-IT:** STOP-IT uses a 1250 ms response window for key presses. We added 250 ms for the reach. The 2000 ms from one letter to the next fixation, plus at least 500 ms of fixation, leaves time to get back to the start mark.
 - **Between blocks:** 15 s break showing average tap time, missed X's ("aim for 0") and A's tapped. The consensus guide recommends this to stop people slowing down.
 - **Instructions:** one short screen. Finger on the start mark; X = tap the circle as fast as you can; A = don't move; go back to the mark after each tap, and don't wait to see if an A is coming. The last point is the guide's key instruction, adapted for go/no-go.
@@ -26,7 +26,7 @@ Everything is in one file, `index.html`. It needs no internet once it has loaded
 
 - **Corner patches:** the two 3 cm squares at the far corners of the screen turn white for 150 ms at every letter onset. Line the video up to the first frame where they go white.
 - **Block start:** both patches flash 3 times (150 ms on, 150 ms off) at the start of each block, and again after a pause.
-- **Trial code:** the grey strip along the top edge is the trial number in binary. The outer two cells are always on and mark the ends. The 9 cells between them are the trial number, most significant bit first. A printed trial number can be turned on in Advanced settings (off by default).
+- **Trial code:** the grey strip along the top edge is the trial number in binary. The outer two cells are always on and mark the ends. The 9 cells between them are the trial number, most significant bit first. A printed trial number can be turned on in the settings (off by default).
 - **Placement:** the code strip and patches sit at the edge furthest from the participant, so the reaching hand shouldn't cover them. Check this in the camera views during piloting.
 
 ## Setting up the iPad
@@ -37,22 +37,24 @@ Everything is in one file, `index.html`. It needs no internet once it has loaded
 - **Guided Access** (Settings → Accessibility): turn it on and start it once the task is open. This stops home-gestures and notifications from interrupting the task.
 - **Positioning:** put the iPad on the pedestal with the bottom of the screen facing the participant.
 - **Start mark:** tape it on the table and use the same spot for everyone. Write down the distance.
-- **Size check:** press "Check layout & size" on the setup screen. The white bar should measure 10 cm. If it doesn't, change "Screen scale (px per cm)" in Advanced settings (52 is right for most iPads, 64 for an iPad mini).
+- **Size check:** press "Check layout & size" under "Settings and checks" on the setup screen. The white bar should measure 10 cm. If it doesn't, change "Screen scale (px per cm)" under "Change settings" (52 is right for most iPads, 64 for an iPad mini).
 
 ## Running a session
 
-- **Start:** open the task from the session page. The participant ID, hand and notes are filled in from there. Press Start session.
+- **Start:** open the task from the session page. It shows the participant ID and hand from there. Press Start.
+  - Opened on its own, the task asks for the ID and hand instead.
+  - The design summary, settings, layout check and saved runs are under "Settings and checks".
   - Opened on its own, the task asks for the ID and hand instead.
 - **Instructions:** read the single instruction screen out loud, then press Start practice.
-- **After practice:** choose Repeat practice or Start part 1. Repeat it if the participant clearly didn't follow the instructions.
+- **After practice:** choose Practice again or Start part 1. Practise again if the participant clearly didn't follow the instructions.
 - **Each part:** a part starts as soon as its Start button is pressed. A 3-second countdown gives the participant time to put their finger on the start mark. On break screens, the button unlocks after 15 s.
 - **Pausing:** press and hold the grey code strip at the top centre of the screen for 1 s. From the pause screen you can resume (the interrupted trial is re-run), restart the block, or end and save. The task also pauses on its own if the screen locks or someone switches apps.
-- **Saving:** at the end you can press Save CSV… right away, or go back to the session page and save both tasks' files together. Download CSV is a fallback.
-- **Backup copy:** every run stays on the iPad until deleted. Runs are listed on the session page, and on this task's setup screen.
+- **End screen:** it just says "All done. Thank you!", with a small button to go back to the session page.
+- **Saving:** go back to the session page and press Save data there, which saves both tasks' files together. Every run stays on the iPad until deleted. Runs are listed on the session page, and under this task's "Settings and checks".
 
 ## Data file (backup to the video)
 
-- **File name:** `GNG_<ID>_<date-time>.csv`. The lines starting with `#` hold the visit ID (shared with the storytelling file from the same session), hand, notes, settings and device info. Read the file with `comment='#'` in pandas or `comment.char='#'` in R.
+- **File name:** `GNG_<ID>_<date-time>.csv`. The lines starting with `#` hold the visit ID (shared with the storytelling file from the same session), hand, settings and device info. Read the file with `comment='#'` in pandas or `comment.char='#'` in R.
 - **Rows:** one per trial. There are also `sync` rows for the block-start flashes.
 - **Main columns:**
   - `block` (0 = practice), `trial_in_block`, `code` (the trial number in the binary strip)
@@ -75,7 +77,7 @@ Everything is in one file, `index.html`. It needs no internet once it has loaded
 
 ## Settings
 
-- **Advanced settings:** every value can be changed on the setup screen. A yellow "non-default settings" badge appears when anything differs from the defaults above.
+- **Change settings:** every value can be changed under "Settings and checks" on the setup screen. A yellow line appears above Start when anything differs from the defaults above.
 - **Settings in the link:** values can also go in the URL, e.g. `.../index.html?blocks=3`. A bookmarked link then always starts with the same settings.
 - **Testing on a laptop:** the space bar works as a tap on the circle, and Esc pauses.
 

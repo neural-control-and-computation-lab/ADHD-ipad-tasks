@@ -5,15 +5,16 @@
 2. Swaps in four short test clips made with ffmpeg (as if the files had changed on the server)
    and checks that the task downloads them again.
 3. Runs a full session with the short clips and a 3 s retell. Trial 2 is paused and resumed
-   during playback and trial 3 skips to the retell early. Checks the order, the sync flashes
-   and the retell timing in the event log.
+   during playback and trial 3 skips to the retell early. Checks that the participant's screens
+   show no titles or experimenter information, the order, the pause before each retell, the
+   sync flashes and the retell timing in the event log.
 
     python tests/test_story.py
 
 Playwright's Chromium can't decode H.264, so it can't read the films' lengths; the test says so
 and checks their sizes only. Safari on the iPad plays them.
 """
-import asyncio, subprocess, sys, tempfile, pathlib
+import asyncio, re, subprocess, sys, tempfile, pathlib
 from playwright.async_api import async_playwright
 from common import REPO, serve_repo, parse_csv, Checks
 
@@ -93,7 +94,7 @@ async def main():
                     continue
                 want = media_duration(real[s])
                 chk(abs(got[s][2] - want) < 0.3, f'{s}: plays in this browser, length {got[s][2]:.1f} s (file: {want:.1f} s)')
-            listed = await page.inner_text('#slots')
+            listed = await page.text_content('#slots')
             chk(all(t in listed for t in ['The Book Witch', 'Live a Little', 'The Straw', 'The Wolf and the Kid']), 'setup screen lists the four titles')
             chk(await page.evaluate("JSON.parse(localStorage.getItem('storyTask:media')).ready"), 'tells the session page the files are on this device')
             reqs.clear()
@@ -116,8 +117,10 @@ async def main():
             expected = await page.evaluate("window.__story.seededOrder('TEST01')")
             await page.click('#startBtn')
             await page.locator('#msgBtns button', has_text='Continue').click()
+            screens = []
             for n in range(1, 5):
-                await page.wait_for_function("n => document.getElementById('msgTitle').textContent === `Trial ${n} of 4`", arg=n, timeout=20000)
+                await page.wait_for_function("n => window.__story.S.state === 'preview' && window.__story.S.idx === n - 1", arg=n, timeout=20000)
+                screens.append(await page.inner_text('#msg'))
                 await page.locator('#msgBtns button', has_text='Start').click()
                 if n == 2:
                     await wait_flashes_done(page, 2, 'playback start')
@@ -135,9 +138,20 @@ async def main():
                     await open_menu(page)
                     await page.wait_for_timeout(500)
                     await menu_click(page, 'Continue the countdown')
-            await page.wait_for_function("document.getElementById('msgTitle').textContent === 'Finished'", timeout=30000)
+            await page.wait_for_function("window.__story.S.state === 'ended'", timeout=30000)
+            screens.append(await page.inner_text('#msg'))
             text = await page.evaluate('window.__story.csvText({meta: window.__story.S.meta, rows: window.__story.S.rows})')
+            # defaults (no settings in the link)
+            await page.goto(base + '/story/')
+            await page.wait_for_function('window.__story && window.__story.ready')
+            defaults = await page.evaluate('[window.__story.P.retellSec, window.__story.P.retellDelayMs]')
             await browser.close()
+
+    titles = ['Book Witch', 'Live a Little', 'Straw', 'Wolf', 'TEST01', 'Trial', 'Experimenter', '.mp4', '.mp3']
+    chk(not [t for t in titles if any(t in scr for scr in screens)], 'participant screens show no titles, file names, ID or experimenter notes')
+    kinds = [s.split('\n')[0] for s in screens[:4]]
+    chk(all(k in ("Next, you'll watch a short film.", "Next, you'll listen to a story.") for k in kinds), f'between trials: only "film" or "story" next ({kinds[0]!r} …)')
+    chk(defaults == [60, 2000], f'defaults: 60 s retell, 2 s pause before it ({defaults})')
 
     rows = parse_csv(text)
     trials = {}
@@ -156,10 +170,14 @@ async def main():
         chk(0 <= lag < 80, f'trial {n}: first flash {lag:.1f} ms after playback began')
         chk(first('retell_start')['t_ms'] == rf[0]['t_ms'], f'trial {n}: retell timer starts on retell flash 1')
         chk(2990 <= dur <= 3060, f'trial {n}: retell lasted {dur:.0f} ms (3000 planned)')
+        end_media = first('media_ended') or first('media_stopped_early')
+        gap = float(rf[0]['t_ms']) - float(end_media['t_ms'])
+        chk(2000 <= gap <= 2060, f'trial {n}: {gap:.0f} ms pause between the end of the {"film" if ev[0]["kind"] == "video" else "story"} and the retell (2000 planned)')
     chk(any(r['event'] == 'resumed' for r in trials[2]), 'trial 2: pause and resume during playback logged')
     chk(any(r['event'] == 'media_stopped_early' for r in trials[3]), 'trial 3: skip to the retell logged')
     chk(any(r['event'] == 'menu_opened' for r in trials[4]), 'trial 4: menu during the retell, countdown kept its time')
-    chk(all(f.name in text for f in real.values()) and 'version=1.2' in text.replace(' ', ''), 'data file header lists the file names and app version')
+    version = re.search(r"const VERSION = '([\d.]+)'", (REPO / 'story' / 'index.html').read_text()).group(1)
+    chk(all(f.name in text for f in real.values()) and f'version={version} ' in text, f'data file header lists the file names and app version {version}')
     chk(not errors, f'no page errors {errors[:3]}')
     return chk.finish()
 

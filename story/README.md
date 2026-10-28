@@ -6,18 +6,20 @@ Part of the ATHENA ADHD study. The participant watches two short films and liste
 
 ## Design
 
-- **Stimuli:** 2 films (video) and 2 stories (audio), in a random order set by the participant ID. The same ID always gives the same order, and the setup screen shows it.
+- **Stimuli:** 2 films (video) and 2 stories (audio), in a random order set by the participant ID. The same ID always gives the same order (listed under "Films, settings and checks" on the setup screen).
 - **Each trial:**
-  - the experimenter sees which film or story is next and presses Start
+  - the screen says only "Next, you'll watch a short film" or "Next, you'll listen to a story", with a Start button
   - the film plays on screen, or the story plays with a "Listen to the story" screen
-  - when it ends, the retell screen appears ("Tell us what happened in the film/story") with a 30 s countdown
-  - "Time's up" for 2 s, then the experimenter sees the next one
-- **Session length:** the four stimuli plus 4 × 30 s of retelling, about 6–8 min for 1–1.5 min stimuli.
+  - when it ends, the screen goes blank for 2 s
+  - then the retell screen appears ("Tell us what happened in the film/story") with a 1-minute countdown
+  - "Time's up. Thank you!" for 2 s, then the next one
+- **What the participant sees:** every screen during the task is written for the participant. Titles, file names, the participant ID and trial numbers are never shown. The end screen just says "All done. Thank you!", with a small button to go back to the session page.
+- **Session length:** about 9 min of films and stories plus 4 × 1 min of retelling, so about 13–14 min with the instructions.
 
 ## Video synchronisation
 
 - **Playback start:** both corner patches flash 3 times when playback actually starts. For films, this waits for the first video frame to be shown. Flash 1 is the playback start.
-- **Retell start:** both patches flash 3 times when the countdown starts. Flash 1 is the start of the retell.
+- **Retell start:** both patches flash 3 times when the retell screen appears and the countdown starts (after the 2 s pause). Flash 1 is the start of the retell.
 - **Clear corners:** the film is drawn below the strip holding the patches, so the corners stay black except during the flashes.
 
 ## Films and stories
@@ -45,16 +47,17 @@ Part of the ATHENA ADHD study. The participant watches two short films and liste
 
 ## Running a session
 
-- **Start:** open the task from the session page. The participant ID and notes are filled in from there, and the order appears. Press Start session. All four files must be on the iPad (green on the setup screen).
+- **Start:** open the task from the session page. It shows the participant ID and "Films and stories: ready on this iPad" in green. Press Start.
   - Opened on its own, the task asks for the ID instead.
-- **Introduction:** read the introduction screen to the participant, then press Continue.
-- **Each trial:** press Start when the participant is ready. Nothing else is needed until the next preview.
+  - The order, the Test buttons for the films and stories, the settings and the layout check are under "Films, settings and checks".
+- **Introduction:** the participant reads it (or you read it to them), then presses Continue.
+- **Each trial:** the participant (or you) presses Start when ready. Nothing else is needed until the next one.
 - **Experimenter menu:** press and hold the top centre of the screen for 1 s (Esc on a keyboard). During playback you can resume, skip to the retell, restart the trial, or end the session. During the retell you can let the countdown continue (it keeps running in the background) or end it early.
-- **Saving:** at the end you can press Save CSV… right away, or go back to the session page and save both tasks' files together. Every run stays on the iPad until deleted (session page or this task's setup screen).
+- **Saving:** at the end, go back to the session page and press Save data there, which saves both tasks' files together. Every run stays on the iPad until deleted (session page, or this task's "Films, settings and checks").
 
 ## Data file
 
-- **File name:** `STORY_<ID>_<date-time>.csv`. Lines starting with `#` hold the app version, the visit ID (shared with the go/no-go file from the same session), the order, the file names, sizes and durations, hand, notes, settings and device info. Read the file with `comment='#'` in pandas or `comment.char='#'` in R.
+- **File name:** `STORY_<ID>_<date-time>.csv`. Lines starting with `#` hold the app version, the visit ID (shared with the go/no-go file from the same session), the order, the file names, sizes and durations, hand, settings and device info. Read the file with `comment='#'` in pandas or `comment.char='#'` in R.
 - **Rows:** one row per event, with `trial`, `slot`, `label`, `kind` (video/audio) and `file`.
 - **Events:**
   - `start_pressed`
@@ -64,14 +67,15 @@ Part of the ATHENA ADHD study. The participant watches two short films and liste
   - `retell_start`
   - `retell_end`
   - menu actions (`menu_opened`, `resumed`, `media_stopped_early`, `trial_restarted`, `trial_skipped`)
+  - `media_problem` if a film or story fails to play
   - `app_hidden` / `app_visible`
 - **Times:** `t_ms` is the iPad clock (ms since the page loaded) and `epoch_ms` is wall-clock time. `media_time_s` is the position in the film or story at that moment.
 
 ## Settings
 
-- **Advanced settings** on the setup screen: retell time (default 30 s), a gap before the retell timer (default 0), how long "Time's up" shows, patch size and flash timing, screen scale, and the order seed.
+- **Change settings** (under "Films, settings and checks"): retell time (default 60 s), the blank pause before the retell (default 2 s), how long "Time's up" shows, patch size and flash timing, screen scale, and the order seed. A yellow line on the setup screen shows when anything differs from the defaults.
 - **Settings in the link:** e.g. `.../story/?retellSec=45`. The order seed defaults to the participant ID.
-- **Instruction wording:** edit the `TEXT` block near the top of `index.html`.
+- **Instruction wording:** edit the `TEXT` block near the top of `index.html`. It holds every line the participant sees.
 
 ## Things to settle while piloting
 

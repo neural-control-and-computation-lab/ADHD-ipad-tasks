@@ -75,11 +75,14 @@ async def main():
             await page.click('#resumeBtn')
             await wait_msg(page)
             await click_text(page, 'Start part 2')
-            await page.wait_for_function("document.getElementById('msgTitle').textContent === 'Finished'", timeout=120000)
+            await page.wait_for_function("window.__gng.S && window.__gng.S.status === 'finished'", timeout=120000)
+            end_text = await page.inner_text('#msg')
+            chk('All done' in end_text and 'TEST01' not in end_text and 'Experimenter' not in end_text,
+                'end screen is for the participant (no ID, no experimenter table)')
             robot = await page.evaluate('window.__robot')
             lists = await page.evaluate('window.__gng.S.testLists')
             async with page.expect_download() as dl:
-                await page.click('text=Download CSV')
+                await page.locator('#msgExtra button', has_text='Save data').click()   # no share sheet here, so it downloads
             text = open(await (await dl.value).path()).read()
 
             rows = parse_csv(text)

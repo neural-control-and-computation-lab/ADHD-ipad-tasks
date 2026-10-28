@@ -33,14 +33,14 @@
     try { stored = JSON.parse(lsGet(KEY) || 'null'); } catch (e) {}
     if (pid && validId(pid)) {
       const same = stored && stored.participant === pid ? stored : {};
-      return {participant: pid, hand: q.get('hand') || same.hand || 'right', notes: q.get('notes') ?? same.notes ?? '',
+      return {participant: pid, hand: q.get('hand') || same.hand || 'right',
               visit: q.get('visit') || same.visit || '', started_iso: same.started_iso || ''};
     }
     return stored && validId(stored.participant) ? stored : null;
   }
   function start(info) {
     const now = new Date();
-    const s = {participant: info.participant, hand: info.hand || 'right', notes: info.notes || '',
+    const s = {participant: info.participant, hand: info.hand || 'right',
                visit: stamp(now), started_iso: now.toISOString(), started_local: now.toLocaleString()};
     lsSet(KEY, JSON.stringify(s));
     return s;
@@ -48,7 +48,7 @@
   function update(fields) { const s = current(); if (!s) return null; Object.assign(s, fields); lsSet(KEY, JSON.stringify(s)); return s; }
   function end() { lsDel(KEY); }
   function taskLink(task, s, base) {
-    const q = new URLSearchParams({pid: s.participant, hand: s.hand || 'right', notes: s.notes || '', visit: s.visit || ''});
+    const q = new URLSearchParams({pid: s.participant, hand: s.hand || 'right', visit: s.visit || ''});
     return (base || '') + task.path + '?' + q.toString();
   }
 

@@ -51,56 +51,49 @@ td .btn{margin:2px 0}
 details summary{cursor:pointer;color:#ddd;font-size:16px;padding:4px 0}
 a{color:var(--accent)}
 .hidden{display:none !important}
+.btn.big{font-size:20px;padding:15px 40px}
+.head{display:flex;align-items:flex-start;gap:12px;padding-bottom:8px;border-bottom:1px solid var(--line);margin-bottom:2px}
+.head .grow{flex:1}
+.saveRow{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.ok{color:var(--ok)}
+details.more{padding:12px 18px}
+details.more > summary{font-size:16px;color:#ccc}
+details.more[open] > summary{margin-bottom:8px}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <h1>ADHD study · iPad tasks</h1>
-  <p class="sub">NCC Lab. Enter the participant here once, then run both tasks from this page. Each task picks up the participant's details and saves its data under this visit.</p>
+  <h1>ADHD study</h1>
 
-  <!-- no active session -->
+  <!-- no current participant -->
   <div class="card" id="newCard">
-    <h2>New participant</h2>
     <label class="row"><span>Participant ID</span><input id="pid" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="e.g. P001"></label>
     <label class="row"><span>Hand used</span><select id="hand"><option value="right">Right</option><option value="left">Left</option></select></label>
-    <label class="row"><span>Notes (optional)</span><input id="notes" autocomplete="off" placeholder="e.g. medication taken 9:30"></label>
     <div class="err" id="err"></div>
-    <div class="btns"><button class="btn primary" id="startBtn">Start session</button></div>
+    <div class="btns"><button class="btn primary big" id="startBtn">Start session</button></div>
   </div>
 
-  <!-- active session -->
-  <div class="card hidden" id="sessCard">
-    <h2>Current participant</h2>
-    <div class="who" id="who"></div>
-    <div class="meta" id="whoMeta"></div>
-    <div class="btns">
-      <button class="btn small" id="editNotesBtn">Edit notes</button>
-      <button class="btn small danger" id="endBtn">End session</button>
+  <!-- current participant -->
+  <div id="sessView" class="hidden">
+    <div class="card">
+      <div class="head">
+        <div class="grow"><div class="who" id="who"></div><div class="meta" id="whoMeta"></div></div>
+        <button class="btn small danger" id="endBtn">End session</button>
+      </div>
+      <div id="taskList"></div>
+    </div>
+    <div class="card">
+      <div class="saveRow"><button class="btn primary" id="saveAllBtn">Save data…</button><span class="meta" id="saveMeta"></span></div>
     </div>
   </div>
 
-  <div class="card hidden" id="tasksCard">
-    <h2>Tasks</h2>
-    <p class="sub" style="margin:0 0 4px" id="orderNote"></p>
-    <div id="taskList"></div>
-  </div>
-
-  <div class="card hidden" id="dataCard">
-    <h2>Data for this participant</h2>
-    <div id="pData"></div>
-    <div class="btns"><button class="btn primary" id="saveAllBtn">Save all CSVs for this participant…</button></div>
-    <p class="sub" style="margin:10px 0 0">Saves each task's CSV through the share sheet (AirDrop, Save to Files or Dropbox). Copies stay on this iPad until deleted below.</p>
-  </div>
-
-  <div class="card">
-    <h2>All data on this iPad</h2>
+  <details class="card more" id="allCard"><summary>All data on this iPad</summary>
     <div class="meta" id="storeMeta"></div>
-    <details style="margin-top:8px"><summary>Show all saved task runs</summary><div id="allData"></div>
-      <div class="btns"><button class="btn small danger" id="delExportedBtn">Delete all exported runs</button></div>
-    </details>
-  </div>
+    <div id="allData"></div>
+    <div class="btns"><button class="btn small danger" id="delExportedBtn">Delete runs that have been saved</button></div>
+  </details>
 
-  <p class="sub">Setting up an iPad: open this page in Safari, tap Share → Add to Home Screen, and run everything from that icon. The tasks open inside it and share its storage. Don't add the tasks as separate icons. Details: <a href="https://github.com/neural-control-and-computation-lab/ADHD-ipad-tasks">github.com/neural-control-and-computation-lab/ADHD-ipad-tasks</a></p>
+  <p class="sub">Run everything from this page's home-screen icon. Set-up steps: <a href="https://github.com/neural-control-and-computation-lab/ADHD-ipad-tasks">github.com/neural-control-and-computation-lab/ADHD-ipad-tasks</a></p>
 </div>
 
 <script src="session.js"></script>
@@ -113,42 +106,35 @@ const TASK_ICONS = {gonogo: 'gonogo/icon.png', story: 'story/icon.png'};
 /* Counterbalanced task order: odd-numbered IDs start with go/no-go, even-numbered with storytelling. */
 function taskOrder(pid){
   const m = String(pid).match(/(\d+)\D*$/);
-  let odd, why;
-  if (m){ odd = parseInt(m[1], 10) % 2 === 1; why = `ID number ${parseInt(m[1], 10)} is ${odd ? 'odd' : 'even'}`; }
-  else { let h = 0; for (const ch of String(pid)) h = (h*31 + ch.charCodeAt(0)) >>> 0; odd = h % 2 === 1; why = 'no number in the ID, so set from the ID text'; }
-  const ids = odd ? ['gonogo', 'story'] : ['story', 'gonogo'];
-  return {ids, why};
+  let odd;
+  if (m) odd = parseInt(m[1], 10) % 2 === 1;
+  else { let h = 0; for (const ch of String(pid)) h = (h*31 + ch.charCodeAt(0)) >>> 0; odd = h % 2 === 1; }   // no number in the ID
+  return odd ? ['gonogo', 'story'] : ['story', 'gonogo'];
 }
 /* The storytelling task downloads its films and stories the first time it opens, and notes here whether it has them. */
-const MEDIA_MISSING = 'The films and stories are not on this iPad yet. Open the storytelling task once on Wi-Fi to download them.';
+const MEDIA_MISSING = 'Films and stories not downloaded yet: open this task once on Wi-Fi.';
 function storyMediaReady(){ try { const m = JSON.parse(Session.lsGet('storyTask:media')); return !!(m && m.ready); } catch(e){ return false; } }
 function statusFor(recs){
   if (!recs.length) return {cls: '', text: 'Not started'};
-  const r = recs[0];
-  const when = r.started_local ? 'started ' + r.started_local.split(',').pop().trim().replace(/:\d\d(?=\s|$)/, '') : '';
-  const exp = r.exported ? ' · exported' : ' · not exported yet';
-  const sum = r.summary ? ' · ' + r.summary : '';
-  if (r.status === 'finished') return {cls: 'ok', text: `Finished (${when})${sum}${exp}`};
-  if (r.status === 'ended early') return {cls: 'mid', text: `Ended early (${when})${sum}${exp}`};
-  return {cls: 'mid', text: `Not finished (${when})${sum}`};
+  const r = recs[0], sum = r.summary ? ' · ' + r.summary : '';
+  if (r.status === 'finished') return {cls: 'ok', text: 'Done' + sum};
+  if (r.status === 'ended early') return {cls: 'mid', text: 'Ended early' + sum};
+  return {cls: 'mid', text: 'Not finished' + sum};
 }
 function render(){
   const s = Session.current();
   $('newCard').classList.toggle('hidden', !!s);
-  for (const id of ['sessCard','tasksCard','dataCard']) $(id).classList.toggle('hidden', !s);
+  $('sessView').classList.toggle('hidden', !s);
   const all = Session.records();
   if (s){
     $('who').textContent = s.participant;
     const age = s.started_iso ? (Date.now() - Date.parse(s.started_iso))/36e5 : 0;
-    $('whoMeta').innerHTML = `${esc(s.hand === 'left' ? 'Left' : 'Right')} hand` + (s.notes ? ` · ${esc(s.notes)}` : '') +
-      `<br>Session started ${esc(s.started_local || '')} (visit ${esc(s.visit)})` +
-      (age > 12 ? `<br><span class="warn">This session started more than 12 hours ago. End it if this is a new participant.</span>` : '');
-    const ord = taskOrder(s.participant);
-    $('orderNote').textContent = `Suggested order (counterbalanced: ${ord.why}).`;
+    $('whoMeta').innerHTML = `${s.hand === 'left' ? 'Left' : 'Right'} hand` +
+      (age > 12 ? `<br><span class="warn">Started more than 12 hours ago. End it if this is a new participant.</span>` : '');
     const box = $('taskList'); box.innerHTML = '';
     const mine = all.filter(r => r.participant === s.participant && r.visit === s.visit);
     let nextMarked = false;
-    ord.ids.forEach((id, i) => {
+    taskOrder(s.participant).forEach((id, i) => {
       const t = Session.TASKS.find(x => x.id === id);
       const recs = mine.filter(r => r.taskId === id);
       const st = statusFor(recs);
@@ -162,31 +148,31 @@ function render(){
       b.onclick = () => location.assign(Session.taskLink(t, s));
       row.appendChild(b); box.appendChild(row);
     });
-    const pRecs = all.filter(r => r.participant === s.participant);
-    $('pData').innerHTML = pRecs.length ? table(pRecs, false) : '<p class="sub" style="margin:0">No task data yet.</p>';
-    bindRows($('pData'), pRecs);
+    const pRecs = all.filter(r => r.participant === s.participant), unsaved = pRecs.filter(r => !r.exported).length;
     $('saveAllBtn').disabled = !pRecs.length;
+    $('saveMeta').innerHTML = !pRecs.length ? 'No data yet.' :
+      unsaved ? `${unsaved} file${unsaved === 1 ? '' : 's'} not saved yet.` : '<span class="ok">All saved.</span>';
   }
   const used = Session.storageUsed();
-  $('storeMeta').innerHTML = `${all.length} saved task run${all.length === 1 ? '' : 's'}, ${all.filter(r => !r.exported).length} not exported. ` +
-    `Using about ${(used/1024).toFixed(0)} KB of the browser's ~5 MB limit` +
-    (used > 3.5e6 ? '. <span class="warn">Storage is getting full: export, then delete old runs.</span>' : '.') +
-    '<br>' + (storyMediaReady() ? 'Films and stories for the storytelling task: on this iPad.' : `<span class="warn">${MEDIA_MISSING}</span>`);
-  $('allData').innerHTML = all.length ? table(all, true) : '<p class="sub" style="margin:8px 0 0">Nothing saved yet.</p>';
+  $('storeMeta').innerHTML = `${all.length} task run${all.length === 1 ? '' : 's'}, ${all.filter(r => !r.exported).length} not saved yet. ` +
+    `About ${(used/1024).toFixed(0)} KB of the browser's ~5 MB limit used` +
+    (used > 3.5e6 ? '. <span class="warn">Storage is getting full: save, then delete old runs.</span>' : '.') +
+    '<br>' + (storyMediaReady() ? 'Storytelling films and stories: on this iPad.' : '<span class="warn">Storytelling films and stories: not downloaded yet. Open that task once on Wi-Fi.</span>');
+  $('allData').innerHTML = all.length ? table(all) : '<p class="sub" style="margin:8px 0 0">Nothing saved yet.</p>';
   bindRows($('allData'), all);
 }
-function table(recs, showPid){
-  return `<table><tr>${showPid ? '<th>ID</th>' : ''}<th>Task</th><th>Started</th><th>Status</th><th></th></tr>` +
-    recs.map((r, i) => `<tr>${showPid ? `<td>${esc(r.participant)}</td>` : ''}<td>${esc(r.taskName)}</td><td>${esc(r.started_local || r.session)}</td>` +
-      `<td>${esc(r.status || 'in progress')}${r.exported ? ' · <span style="color:var(--ok)">exported</span>' : ' · <span class="warn">not exported</span>'}</td>` +
-      `<td style="text-align:right;white-space:nowrap"><button class="btn small" data-act="save" data-i="${i}">Save CSV</button> <button class="btn small danger" data-act="del" data-i="${i}">Delete</button></td></tr>`).join('') + '</table>';
+function table(recs){
+  return `<table><tr><th>ID</th><th>Task</th><th>Started</th><th>Status</th><th></th></tr>` +
+    recs.map((r, i) => `<tr><td>${esc(r.participant)}</td><td>${esc(r.taskName)}</td><td>${esc(r.started_local || r.session)}</td>` +
+      `<td>${esc(r.status || 'in progress')}${r.exported ? ' · <span class="ok">saved</span>' : ' · <span class="warn">not saved</span>'}</td>` +
+      `<td style="text-align:right;white-space:nowrap"><button class="btn small" data-act="save" data-i="${i}">Save</button> <button class="btn small danger" data-act="del" data-i="${i}">Delete</button></td></tr>`).join('') + '</table>';
 }
 function bindRows(box, recs){
   box.querySelectorAll('button[data-act]').forEach(b => {
     const r = recs[+b.dataset.i];
     b.onclick = async () => {
       if (b.dataset.act === 'save'){ if (await Session.exportFiles([{name: r.filename, text: r.csv}])) Session.markExported([r.key]); render(); }
-      else if (confirm(`Delete ${r.taskName} data for ${r.participant} (${r.started_local || r.session}) from this iPad?` + (r.exported ? '' : '\n\nThis run has NOT been exported.'))){ Session.lsDel(r.key); render(); }
+      else if (confirm(`Delete ${r.taskName} data for ${r.participant} (${r.started_local || r.session}) from this iPad?` + (r.exported ? '' : '\n\nThis run has NOT been saved anywhere else.'))){ Session.lsDel(r.key); render(); }
     };
   });
 }
@@ -197,20 +183,15 @@ $('startBtn').onclick = () => {
   const earlier = Session.records().filter(r => r.participant === pid);
   if (earlier.length && !confirm(`There is already data for ${pid} on this iPad. Start a new session for ${pid} anyway?`)) return;
   $('err').textContent = '';
-  Session.start({participant: pid, hand: $('hand').value, notes: $('notes').value.trim()});
+  Session.start({participant: pid, hand: $('hand').value});
   render();
 };
 $('pid').addEventListener('keydown', e => { if (e.key === 'Enter') $('startBtn').click(); });
 $('endBtn').onclick = () => {
   const s = Session.current(); if (!s) return;
-  const unexp = Session.records().filter(r => r.participant === s.participant && !r.exported).length;
-  if (!confirm(`End the session for ${s.participant}?` + (unexp ? `\n\n${unexp} task run(s) for this participant have not been exported yet. They stay on the iPad.` : ''))) return;
-  Session.end(); $('pid').value = ''; $('notes').value = ''; render();
-};
-$('editNotesBtn').onclick = () => {
-  const s = Session.current(); if (!s) return;
-  const v = prompt('Notes for this participant (saved with each task run started after this):', s.notes || '');
-  if (v !== null){ Session.update({notes: v.trim()}); render(); }
+  const unsaved = Session.records().filter(r => r.participant === s.participant && !r.exported).length;
+  if (!confirm(`End the session for ${s.participant}?` + (unsaved ? `\n\n${unsaved} file(s) for this participant have not been saved yet. They stay on the iPad.` : ''))) return;
+  Session.end(); $('pid').value = ''; render();
 };
 $('saveAllBtn').onclick = async () => {
   const s = Session.current(); if (!s) return;
@@ -220,8 +201,8 @@ $('saveAllBtn').onclick = async () => {
 };
 $('delExportedBtn').onclick = () => {
   const ex = Session.records().filter(r => r.exported);
-  if (!ex.length){ alert('No exported runs to delete.'); return; }
-  if (confirm(`Delete ${ex.length} exported task run(s) from this iPad?`)){ ex.forEach(r => Session.lsDel(r.key)); render(); }
+  if (!ex.length){ alert('No saved runs to delete.'); return; }
+  if (confirm(`Delete ${ex.length} task run(s) that have already been saved?`)){ ex.forEach(r => Session.lsDel(r.key)); render(); }
 };
 addEventListener('pageshow', render);          // refresh statuses when coming back from a task
 render();

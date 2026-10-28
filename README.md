@@ -8,16 +8,16 @@ iPad tasks for the ATHENA ADHD study (NCC Lab, York University). Participants do
 |---|---|---|
 | Session page (`index.html`) | Enter the participant once, open each task, see what's done, export all of a participant's data | this file |
 | Go/no-go reach task (`gonogo/`) | Reach and tap the circle for X, don't move for A; practice + 4 test blocks | [gonogo/README.md](gonogo/README.md) |
-| Storytelling task (`story/`) | Two short films and two spoken stories in random order, each followed by a 30 s retell | [story/README.md](story/README.md) |
+| Storytelling task (`story/`) | Two short films and two spoken stories in random order, each followed by a 1-minute retell | [story/README.md](story/README.md) |
 
 ## Running a session
 
-1. **Session page:** enter the participant ID, the hand they'll use, and any notes (e.g. medication time), then press Start session.
+1. **Session page:** enter the participant ID and the hand they'll use, then press Start session.
 2. **Tasks:** the page suggests the task order (counterbalanced: go/no-go first for odd-numbered IDs, storytelling first for even). Press Open on a task.
    - The task fills in the participant's details and locks them.
    - Its data are saved under this session's visit ID.
-3. **Back to the session page:** when a task ends, press "Back to session page" on its end screen. That task now shows as finished.
-4. **Save the data:** after both tasks, press "Save all CSVs for this participant…". The share sheet saves both files (AirDrop, Save to Files or Dropbox).
+3. **Back to the session page:** when a task ends, press the small "Back to session page" button under "All done. Thank you!". That task now shows as Done.
+4. **Save the data:** after both tasks, press Save data. The share sheet saves both files (AirDrop, Save to Files or Dropbox).
 5. **End the session:** press End session before the next participant.
 
 ## Setting up an iPad
@@ -30,9 +30,9 @@ iPad tasks for the ATHENA ADHD study (NCC Lab, York University). Participants do
 - **Screen:** set Auto-Lock to Never, turn on Do Not Disturb, and fix the screen brightness.
 - **Rotation:** lock rotation in landscape.
 - **Guided Access** (Settings → Accessibility): use it to stop gestures and notifications from interrupting a session.
-- **Data:** nothing is sent over the network. Data stay on the iPad until exported.
+- **Data:** nothing is sent over the network. Data stay on the iPad until saved and deleted.
   - The only downloads are the app itself and the storytelling task's films and stories.
-  - The session page lists every saved run, shows how much storage is used, and can delete exported runs.
+  - "All data on this iPad" at the bottom of the session page lists every run, shows how much storage is used, and can delete runs that have been saved.
 
 ## Shared conventions
 
@@ -41,9 +41,11 @@ iPad tasks for the ATHENA ADHD study (NCC Lab, York University). Participants do
 - **Experimenter menu inside a task:** press and hold the top centre of the screen for 1 s (Esc on a keyboard).
 - **Data files:** `GNG_<ID>_<date-time>.csv` and `STORY_<ID>_<date-time>.csv`.
   - The `#` header lines include `visit=`, which is the same in both files from one session.
-  - They also include the hand, the notes and all settings.
+  - They also include the hand and all settings.
 - **Order:** trial orders within each task are set by the participant ID, so they can be rebuilt without the data file.
-- **Settings:** each task has Advanced settings on its setup screen, and any setting can go in the link (e.g. `.../gonogo/?blocks=3`). A yellow badge shows when anything differs from the defaults.
+- **Setup screens:** each task's setup screen shows the participant and a Start button. Everything else (design, settings, checks, saved runs, and the storytelling films) is folded away under "Settings and checks".
+- **Settings:** change them there, or put any setting in the link (e.g. `.../gonogo/?blocks=3`). A yellow line above Start shows when anything differs from the defaults.
+- **Participant screens:** once a task starts, every screen is written for the participant. No titles, IDs or experimenter notes are shown.
 
 ## Updating a task
 
