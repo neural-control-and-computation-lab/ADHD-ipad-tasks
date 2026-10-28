@@ -354,7 +354,8 @@ async function download(s){
     buf = await new Blob(parts).arrayBuffer();
   } else buf = await res.arrayBuffer();
   if (st.total && buf.byteLength !== st.total) throw new Error('download incomplete');
-  const type = (res.headers.get('content-type') || '').split(';')[0] || (s.kind === 'video' ? 'video/mp4' : 'audio/mpeg');
+  let type = (res.headers.get('content-type') || '').split(';')[0].trim() || (s.kind === 'video' ? 'video/mp4' : 'audio/mpeg');
+  if (type === 'audio/mp3') type = 'audio/mpeg';    // GitHub Pages labels MP3s audio/mp3; audio/mpeg is the standard name
   const probeUrl = URL.createObjectURL(new Blob([buf], {type}));
   const duration = await probeDuration(probeUrl, s.kind); URL.revokeObjectURL(probeUrl);   // NaN if this browser can't play it
   const rec = {buf, name: baseName(s.file), src: s.file, type, size: buf.byteLength, duration, savedAt: Date.now()};
