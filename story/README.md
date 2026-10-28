@@ -4,6 +4,8 @@ Part of the ATHENA ADHD study. The participant watches two short films and liste
 
 **Live version:** https://neural-control-and-computation-lab.github.io/ADHD-ipad-tasks/story/ (normally opened from the [session page](../README.md))
 
+The task is one file, `index.html`. The wording participants read is in [participant-text.md](../participant-text.md), which can be edited on GitHub without coding (see the [main README](../README.md#changing-what-participants-read-no-coding)).
+
 ## Design
 
 - **Stimuli:** 2 films (video) and 2 stories (audio), in a random order set by the participant ID. The same ID always gives the same order (listed under "Films, settings and checks" on the setup screen).
@@ -75,7 +77,7 @@ Part of the ATHENA ADHD study. The participant watches two short films and liste
 
 - **Change settings** (under "Films, settings and checks"): retell time (default 60 s), the blank pause before the retell (default 2 s), how long "Time's up" shows, patch size and flash timing, screen scale, and the order seed. A yellow line on the setup screen shows when anything differs from the defaults.
 - **Settings in the link:** e.g. `.../story/?retellSec=45`. The order seed defaults to the participant ID.
-- **Instruction wording:** edit the `TEXT` block near the top of `index.html`. It holds every line the participant sees.
+- **Wording:** every line the participant sees is in [participant-text.md](../participant-text.md). Check changes on the [preview page](https://neural-control-and-computation-lab.github.io/ADHD-ipad-tasks/preview.html).
 
 ## Things to settle while piloting
 

@@ -14,14 +14,15 @@
 <!--
   Storytelling (retell) task for iPad (Safari), NCC Lab, York University.
   Two short films and two spoken stories are played one at a time in a random order
-  (seeded by participant ID). After each one the participant has a fixed time (default 30 s)
-  to retell it, with on-screen instructions and a countdown.
+  (seeded by participant ID). After each one, and a 2 s pause, the participant has a fixed time
+  (default 60 s) to retell it, with on-screen instructions and a countdown.
   Video synchronisation: the two corner patches flash 3 times when playback actually starts
   and 3 times when the retell timer starts (first flash = the event). Every event is logged
   with its time and exported as CSV at the end.
   The films and stories come with the app (story/media/, listed in SLOTS below). The first
   time the task opens on an iPad it downloads them into the browser's storage (IndexedDB);
   after that they play from the iPad, so a session doesn't depend on the network.
+  The words the participant reads come from participant-text.md (loaded by shared/text.js).
 -->
 <style>
 :root{
@@ -139,6 +140,7 @@ details.more h2{margin-top:18px}
    </div>
    <div class="status" id="mediaLine"></div>
    <div class="status warn hidden" id="nonDefault">Some settings differ from the defaults.</div>
+   <div class="status warn hidden" id="textLine"></div>
    <div class="err" id="setupErr"></div>
    <div class="btns"><button class="btn primary big" id="startBtn">Start</button></div>
   </div>
@@ -219,10 +221,11 @@ details.more h2{margin-top:18px}
   </div>
 </div>
 
-<script src="../session.js"></script>
+<script src="../shared/session.js"></script>
+<script src="../shared/text.js"></script>
 <script>
 'use strict';
-const VERSION = '1.3.0';
+const VERSION = '1.4.0';
 /* ---------------- parameters (URL query can override, e.g. ?retellSec=45) ---------------- */
 const DEFAULTS = {
   retellSec: 60,          // time to retell each film/story
@@ -249,18 +252,10 @@ const SLOTS = [
   {id:'story1', kind:'audio', label:'The Straw, the Coal and the Bean', file:'media/story1-the-straw-the-coal-and-the-bean.mp3'},
   {id:'story2', kind:'audio', label:'The Wolf and the Kid',             file:'media/story2-the-wolf-and-the-kid.mp3'}
 ];
-/* participant-facing text (edit freely) */
-const TEXT = {
-  intro: () => `<p>You'll watch <b>2 short films</b> and listen to <b>2 short stories</b>, one at a time.</p>
-     <p>After each one, tell us what happened. You'll have ${retellTime()}, and a timer will count down.</p>`,
-  next: kind => kind === 'video' ? "Next, you'll watch a short film." : "Next, you'll listen to a story.",
-  ready: () => "Tap Start when you're ready.",
-  listen: () => 'Listen to the story',
-  retellTitle: kind => kind === 'video' ? 'Tell us what happened in the film.' : 'Tell us what happened in the story.',
-  retellSub: () => 'Keep going until the timer runs out.',
-  timesUp: () => "Time's up. Thank you!",
-  end: () => `<p class="big">All done. Thank you!</p>`,
-  problem: () => `<p>Sorry, that didn't play.</p><p class="small">Please tell the researcher.</p>`
+/* Everything the participant reads comes from participant-text.md (see shared/text.js). */
+let T = null, textReady = null;
+const tx = {
+  retell: () => ({'retell time': retellTime()})
 };
 const retellTime = () => P.retellSec % 60 === 0 ? `${P.retellSec/60} minute${P.retellSec === 60 ? '' : 's'}` : `${P.retellSec} seconds`;
 const clockText = sec => P.retellSec >= 60 ? `${Math.floor(sec/60)}:${String(sec % 60).padStart(2, '0')}` : String(sec);
@@ -573,6 +568,8 @@ function csvText(d){
     `# task=${m.task} version=${m.version} participant=${m.participant} visit=${m.visit || ''} session=${m.session} started=${m.started_iso}`,
     `# order=${m.order.join(' ')} seed=${m.seed} hand=${m.hand || ''}`,
     `# media=${JSON.stringify(m.media)}`,
+    `# text_source=${m.text_source || ''}`,
+    `# participant_text=${JSON.stringify(m.participant_text || {})}`,
     `# params=${JSON.stringify(m.params)}`,
     `# device=${JSON.stringify(m.device)}`,
     `# one row per event; t_ms = performance.now() on the iPad; epoch_ms = wall clock; sync_flash rows are the corner-patch onsets (flash 1 = the event)`
@@ -640,6 +637,7 @@ async function startSession(){
   }
   const bad = SLOTS.filter(s => !Number.isFinite(media[s.id].duration)).map(s => labelOf(s.id));
   if (bad.length){ $('setupErr').textContent = 'This browser can\'t play: ' + bad.join(', ') + '. Run the task in Safari on the iPad.'; return; }
+  if (!T){ $('setupErr').textContent = 'Loading the participant text…'; await textReady; }
   $('setupErr').textContent = '';
   P = currentParams();
   const now = new Date(), seedStr = (P.seed && P.seed.trim()) || id;
@@ -649,20 +647,22 @@ async function startSession(){
           visit: sess ? sess.visit : '', session: stamp(now), started_local: now.toLocaleString(), started_iso: now.toISOString(), seed: seedStr,
           order: order.map(labelOf), params: {...P},
           media: Object.fromEntries(SLOTS.map(s => [s.id, {label: labelOf(s.id), file: media[s.id].name, bytes: media[s.id].size, duration_s: r1(media[s.id].duration)}])),
+          text_source: T.source, participant_text: T.text,
           device: {ua: navigator.userAgent, w: innerWidth, h: innerHeight, dpr: devicePixelRatio || 1, standalone: navigator.standalone === true, refreshHz}},
         order, idx: 0, rows: [], cur: null, state: 'idle', status: 'in progress', saveOk: true };
   S.lsKey = LS_PREFIX + 'session:' + S.meta.session + ':' + id;
   log('session_start', {detail: 'order: ' + S.meta.order.join(' > ')});
   requestWakeLock(); layout();
-  message({body: TEXT.intro(), buttons: [{label:'Continue', primary:true, onClick: () => trialPreview()}]});
+  message({body: T.paras('Storytelling: introduction', tx.retell()), buttons: [{label: T.plain('Storytelling: button after the introduction'), primary:true, onClick: () => trialPreview()}]});
 }
 function trialPreview(){
   S.state = 'preview'; S.cur = null;
   if (S.idx >= S.order.length){ endSession(); return; }
   // Participant-facing: says only whether a film or a story comes next.
   const slotId = S.order[S.idx], s = slotById(slotId);
-  message({body: `<p class="big">${TEXT.next(s.kind)}</p><p class="small">${TEXT.ready()}</p>`,
-    buttons: [{label: 'Start', primary: true, onClick: () => startTrial(slotId)}]});
+  message({body: T.paras(s.kind === 'video' ? 'Storytelling: before a film' : 'Storytelling: before a story', null, 'big') +
+                T.paras('Storytelling: before a film or story, second line', null, 'small'),
+    buttons: [{label: T.plain('Storytelling: start button'), primary: true, onClick: () => startTrial(slotId)}]});
 }
 function startTrial(slotId){
   // Called from the Start button tap, so media playback is allowed (iOS needs a user gesture).
@@ -671,7 +671,7 @@ function startTrial(slotId){
   S.cur = {n: S.idx + 1, slot: slotId, label: labelOf(slotId), kind: s.kind, file: m.name, el, playingSeen: false, ended: false};
   S.state = 'media';
   showScreen('stage'); layout(); setFlash(false);
-  if (s.kind === 'video') showOnly('vid'); else { $('listenTxt').textContent = TEXT.listen(); showOnly('listen'); }
+  if (s.kind === 'video') showOnly('vid'); else { $('listenTxt').innerHTML = T.line('Storytelling: while a story plays'); showOnly('listen'); }
   log('start_pressed');
   el.onplaying = null; el.onended = null; el.onerror = null;
   el.src = m.url; el.currentTime = 0;
@@ -691,7 +691,7 @@ function startTrial(slotId){
 function mediaFailed(why){
   stopMedia();
   log('media_problem', {detail: why});
-  message({body: TEXT.problem(),
+  message({body: T.paras("Storytelling: if a film or story won't play"),
     buttons: [{label:'Try again', primary:true, onClick: () => trialPreview()}, {label:'Skip', onClick: () => { log('trial_skipped'); S.idx++; trialPreview(); }}]});
 }
 function stopMedia(){ for (const el of [$('vid'), $('aud')]){ el.onplaying = el.onended = el.onerror = null; try { el.pause(); } catch(e){} } }
@@ -701,7 +701,8 @@ async function startRetell(){
   showOnly(null);                                        // blank screen for the pause
   if (P.retellDelayMs > 0) await new Promise(r => setTimeout(r, P.retellDelayMs));
   if (S.cur !== tr || S.state !== 'retell-wait') return;
-  $('retellT1').textContent = TEXT.retellTitle(tr.kind); $('retellT2').textContent = TEXT.retellSub();
+  $('retellT1').innerHTML = T.line(tr.kind === 'video' ? 'Storytelling: retell after a film' : 'Storytelling: retell after a story', tx.retell());
+  $('retellT2').innerHTML = T.line('Storytelling: retell, second line', tx.retell());
   $('clock').textContent = clockText(P.retellSec); $('barFill').style.width = '100%';
   showOnly('retell');                                    // appears with retell flash 1
   S.state = 'retell';
@@ -728,14 +729,14 @@ function runCountdown(tr){
 function finishRetell(t, early){
   const tr = S.cur; S.state = 'done';
   log('retell_end', {t, detail: early ? 'ended early by experimenter' : ''});
-  $('done').textContent = TEXT.timesUp(); showOnly('done');
+  $('done').innerHTML = T.line('Storytelling: when the time is up'); showOnly('done');
   setTimeout(() => { if (S && S.cur === tr){ S.idx++; trialPreview(); } }, P.doneMs);
 }
 function endSession(){
   if (!S) return;
   stopMedia(); flashRun = null; setFlash(false); $('menu').classList.add('hidden');
   S.cur = null; S.status = S.endedEarly ? 'ended early' : 'finished'; log('session_end'); S.state = 'ended'; releaseWakeLock();
-  message({body: TEXT.end()});
+  message({body: T.paras('Storytelling: end', null, 'big')});
   const after = document.createElement('div'); after.className = 'after';
   if (!S.saveOk) after.innerHTML = '<div class="warnline">The copy on this iPad could not be saved (storage full). Press Save data now.</div>';
   const btns = document.createElement('div'); btns.className = 'btns'; btns.style.justifyContent = 'center';
@@ -832,7 +833,13 @@ $('redownloadBtn').onclick = () => syncMedia(true);
   renderSlots(); updateSummary(); updateEnv(); renderSaved(); measureRefresh();
   window.__story = { get S(){ return S; }, get P(){ return P; }, media, dl, get syncing(){ return syncing; }, csvText, seededOrder, ready: true };   // used by tests/
   syncMedia(false);
+  textReady = ParticipantText.load('story', '../').then(t => { T = t; showTextProblems(); });
 })();
+function showTextProblems(){
+  const el = $('textLine'), n = T.problems.length;
+  el.classList.toggle('hidden', !n);
+  el.innerHTML = n ? 'Participant text:<br>' + T.problems.map(esc).join('<br>') : '';
+}
 </script>
 </body>
 </html>

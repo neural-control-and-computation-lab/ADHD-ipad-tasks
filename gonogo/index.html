@@ -22,7 +22,7 @@
   Video synchronisation: white patches in the two far corners turn on at every stimulus onset;
   a binary strip at the far edge identifies each trial in the video (printed number optional).
   The task also logs touches as a backup (CSV export at the end).
-  Single self-contained file; no network access needed once loaded.
+  The words the participant reads come from participant-text.md (loaded by shared/text.js).
 -->
 <style>
 :root{
@@ -144,6 +144,7 @@ details.more h2{margin-top:18px}
    </div>
    <div class="status">iPad flat, bottom of the screen toward the participant, rotation locked.</div>
    <div class="status warn hidden" id="nonDefault">Some settings differ from the defaults.</div>
+   <div class="status warn hidden" id="textLine"></div>
    <div class="err" id="setupErr"></div>
    <div class="btns"><button class="btn primary big" id="startBtn">Start</button></div>
   </div>
@@ -210,7 +211,8 @@ details.more h2{margin-top:18px}
   </div>
 </div>
 
-<script src="../session.js"></script>
+<script src="../shared/session.js"></script>
+<script src="../shared/text.js"></script>
 <script>
 'use strict';
 /* =====================================================================
@@ -220,7 +222,7 @@ details.more h2{margin-top:18px}
    (the start position isn't tracked, so the onset must not be predictable).
    Any parameter can be overridden with a URL query, e.g. ?postMs=1750&blocks=3
    ===================================================================== */
-const VERSION = '1.4.0';
+const VERSION = '1.5.0';
 const DEFAULTS = {
   goLetter: 'X',          // go stimulus
   nogoLetter: 'A',        // no-go stimulus
@@ -271,18 +273,20 @@ const PARAM_META = [
   ['showTrialNum','Printed trial number','bool'], ['seed','Trial-order seed (blank = participant ID)','text']
 ];
 
-/* participant-facing text (edit freely) */
+/* Everything the participant reads comes from participant-text.md (see shared/text.js). */
+let T = null, textReady = null;
+const letters = () => ({'go letter': P.goLetter, 'no-go letter': P.nogoLetter});
 const TEXT = {
-  instructions: () => `
-     <p>Keep your finger on the start mark.</p>
-     <div class="rules"><p class="rule"><span class="kbd">${P.goLetter}</span> tap the circle as fast as you can</p>
-     <p class="rule"><span class="kbd">${P.nogoLetter}</span> don't move</p></div>
-     <p class="small">Go back to the mark after each tap. Don't wait to see if an ${P.nogoLetter} is coming.</p>`,
-  reminder: () => `Tap ${P.goLetter} fast. Don't wait for ${P.nogoLetter}.`,
-  fbOmission: () => 'Too slow',
-  fbCommission: () => `Don't move for ${P.nogoLetter}`,
-  fbPremature: () => 'Too early',
-  end: () => `<p class="big">All done. Thank you!</p>`
+  instructions: () =>
+     T.paras('Go/no-go: instructions', letters()) +
+     `<div class="rules"><p class="rule"><span class="kbd">${esc(P.goLetter)}</span> ${T.line('Go/no-go: next to the go letter', letters())}</p>
+     <p class="rule"><span class="kbd">${esc(P.nogoLetter)}</span> ${T.line('Go/no-go: next to the no-go letter', letters())}</p></div>` +
+     T.paras('Go/no-go: instructions, below the letters', letters(), 'small'),
+  reminder: () => T.paras('Go/no-go: reminder at each break', letters()),
+  fbOmission: () => T.plain('Go/no-go: practice message, too slow', letters()),
+  fbCommission: () => T.plain('Go/no-go: practice message, moved for the no-go letter', letters()),
+  fbPremature: () => T.plain('Go/no-go: practice message, too early', letters()),
+  end: () => T.paras('Go/no-go: end', letters(), 'big')
 };
 
 /* ===================================================================== */
@@ -520,10 +524,11 @@ function message({title='', body='', buttons=[], note=''}){
 }
 
 /* ---------- session flow ---------- */
-function startSession(){
+async function startSession(){
   const id = $('pid').value.trim();
   if (!id){ $('setupErr').textContent = 'Enter a participant ID first.'; $('pid').focus(); return; }
   if (!/^[A-Za-z0-9_\-]+$/.test(id)){ $('setupErr').textContent = 'Use letters, numbers, - or _ only.'; return; }
+  if (!T){ $('setupErr').textContent = 'Loading the participant text…'; await textReady; }
   $('setupErr').textContent = '';
   P = currentParams();
   const now = new Date();
@@ -532,7 +537,7 @@ function startSession(){
     meta: {
       task: 'gonogo-reach', version: VERSION, participant: id, hand: $('hand').value,
       visit: SESSION && SESSION.participant === id ? SESSION.visit : '', session: stamp(now), started_local: now.toLocaleString(), started_iso: now.toISOString(),
-      seed: seedStr, params: {...P},
+      seed: seedStr, params: {...P}, text_source: T.source, participant_text: T.text,
       device: {ua: navigator.userAgent, w: innerWidth, h: innerHeight, dpr: window.devicePixelRatio || 1,
                standalone: window.navigator.standalone === true, refreshHz: refreshHz}
     },
@@ -550,8 +555,9 @@ function startSession(){
 }
 function instructions(){
   const hasPractice = P.practiceTrials > 0;
-  message({title:'Instructions', body: TEXT.instructions(),
-    buttons:[{label: hasPractice ? 'Start practice' : 'Start', primary:true, onClick: hasPractice ? startPractice : () => startTestBlock(1)}]});
+  message({title: T.plain('Go/no-go: instructions title', letters()), body: TEXT.instructions(),
+    buttons:[{label: hasPractice ? T.plain('Go/no-go: button to start the practice', letters()) : T.plain('Go/no-go: button to start the task', {parts: P.blocks}),
+              primary:true, onClick: hasPractice ? startPractice : () => startTestBlock(1)}]});
 }
 function startPractice(){
   S.practiceReps++;
@@ -561,23 +567,22 @@ function startTestBlock(k){
   runBlock({kind:'test', blockNum:k, label:'B'+k, trials: S.testLists[k-1].slice(), onDone: st => blockDone(k, st)});
 }
 function practiceDone(st){
-  const body = `<p>Practice done. From now on there are no messages after each letter.</p>` + feedbackHtml(st);
-  message({title:'Practice', body,
-    buttons:[{label:'Practice again', onClick: startPractice},
-             {label: P.blocks > 1 ? `Start part 1 of ${P.blocks}` : 'Start task', primary:true, onClick: () => startTestBlock(1)}]});
+  const body = T.paras('Go/no-go: after the practice', letters()) + feedbackHtml(st);
+  message({title: T.plain('Go/no-go: after the practice, title', letters()), body,
+    buttons:[{label: T.plain('Go/no-go: button to practise again', letters()), onClick: startPractice},
+             {label: T.plain('Go/no-go: button to start the task', {parts: P.blocks}), primary:true, onClick: () => startTestBlock(1)}]});
 }
 function feedbackHtml(st){
   const rt = Number.isFinite(st.meanRt) ? Math.round(st.meanRt) + ' ms' : 'n/a';
-  return `<p>Average tap time: <b>${rt}</b><br>
-          Missed ${esc(P.goLetter)}'s: <b>${st.omissions}</b> <span style="color:var(--muted)">(aim for 0)</span><br>
-          ${esc(P.nogoLetter)}'s tapped: <b>${st.commissions}</b> of ${st.nogoN}</p>`;
+  return T.paras('Go/no-go: scores', {...letters(), 'average tap time': rt, missed: st.omissions, 'no-go tapped': st.commissions, 'no-go total': st.nogoN});
 }
 function blockDone(k, st){
   S.blockStats.push(st);
   if (k >= P.blocks){ endSession(); return; }
-  const body = `<p>Part ${k} of ${P.blocks} done.</p>` +
-    (P.blockFeedback ? feedbackHtml(st) + `<p>${esc(TEXT.reminder())}</p>` : '');
-  message({title:'Break', body, buttons:[{label:`Start part ${k+1}`, primary:true, delaySec:P.breakSec, onClick: () => startTestBlock(k+1)}]});
+  const body = T.paras('Go/no-go: break', {...letters(), part: k, parts: P.blocks}) +
+    (P.blockFeedback ? feedbackHtml(st) + TEXT.reminder() : '');
+  message({title: T.plain('Go/no-go: break, title', letters()), body,
+    buttons:[{label: T.plain('Go/no-go: button to start the next part', {'next part': k+1, parts: P.blocks}), primary:true, delaySec:P.breakSec, onClick: () => startTestBlock(k+1)}]});
 }
 function endSession(){
   if (B){ cancelAnimationFrame(rafId); B = null; }
@@ -811,6 +816,8 @@ function csvText(d){
     `# task=${m.task} version=${m.version} participant=${m.participant} visit=${m.visit || ''} session=${m.session} started=${m.started_iso}`,
     `# hand=${m.hand} seed=${m.seed}`,
     `# params=${JSON.stringify(m.params)}`,
+    `# text_source=${m.text_source || ''}`,
+    `# participant_text=${JSON.stringify(m.participant_text || {})}`,
     `# device=${JSON.stringify(m.device)}`,
     `# times in ms from page load (performance.now); onset = animation frame in which the letter and corner patches were drawn; rt = touch time - onset; touch x/y in cm from circle centre (+y = away from participant)`
   ];
@@ -909,6 +916,10 @@ if (SESSION){
   $('whoLine').classList.remove('hidden');
 }
 renderAdvanced(); updateSummary(); updateEnv(); renderSaved(); measureRefresh();
+textReady = ParticipantText.load('gonogo', '../').then(t => {
+  T = t; const el = $('textLine'), n = T.problems.length;
+  el.classList.toggle('hidden', !n); el.innerHTML = n ? 'Participant text:<br>' + T.problems.map(esc).join('<br>') : '';
+});
 window.__gng = { get S(){ return S; }, get B(){ return B; }, get P(){ return P; }, L, csvText, computeStats };
 </script>
 </body>

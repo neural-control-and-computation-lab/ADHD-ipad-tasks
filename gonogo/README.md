@@ -4,7 +4,7 @@ A go/no-go task for the ATHENA ADHD study. It runs in Safari on the lab iPad. Th
 
 **Live version:** https://neural-control-and-computation-lab.github.io/ADHD-ipad-tasks/gonogo/ (normally opened from the [session page](../README.md))
 
-Everything is in one file, `index.html`. It needs no internet once it has loaded, and it sends no data anywhere. Data stay on the iPad until you export them.
+The task is one file, `index.html`. The wording participants read is in [participant-text.md](../participant-text.md), which can be edited on GitHub without coding (see the [main README](../README.md#changing-what-participants-read-no-coding)). The task sends no data anywhere; data stay on the iPad until saved.
 
 ## Design (follows Verbruggen et al., 2019 and STOP-IT where it applies)
 
@@ -91,7 +91,7 @@ Everything is in one file, `index.html`. It needs no internet once it has loaded
 ## Updating the task
 
 - The live page is served by GitHub Pages from the `main` branch of the [ADHD-ipad-tasks](../README.md) repo.
-- Edit `gonogo/index.html`, commit and push to `main`. The live page updates within a few minutes.
+- Edit `gonogo/index.html` (or `participant-text.md` for the wording), commit and push to `main`. The live page updates within a few minutes.
 - On the iPad, reload the page (or close and reopen the home-screen app) to get the new version.
 - Record which version was used for each participant. The version number is saved in every data file.
 
