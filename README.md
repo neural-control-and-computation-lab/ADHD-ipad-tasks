@@ -8,7 +8,7 @@ iPad tasks for the ATHENA ADHD study (NCC Lab, York University). Participants do
 |---|---|---|
 | Session page (`index.html`) | Enter the participant once, open each task, see what's done, export all of a participant's data | this file |
 | Go/no-go reach task (`gonogo/`) | Reach and tap the circle for X, don't move for A; practice + 4 test blocks | [gonogo/README.md](gonogo/README.md) |
-| Storytelling task (`story/`) | Two silent films and two spoken stories in random order, each followed by a 30 s retell | [story/README.md](story/README.md) |
+| Storytelling task (`story/`) | Two short films and two spoken stories in random order, each followed by a 30 s retell | [story/README.md](story/README.md) |
 
 ## Running a session
 
@@ -26,11 +26,12 @@ iPad tasks for the ATHENA ADHD study (NCC Lab, York University). Participants do
   - The tasks open inside the session page's app.
   - Each home-screen icon on an iPad has its own separate storage, so separate task icons wouldn't see the participant or each other's data.
 - **Run everything from that icon.** It runs full screen with no browser bars.
-- **Load the films and stories:** open the storytelling task once and load them (see [story/README.md](story/README.md)).
+- **Download the films and stories:** on Wi-Fi, open the storytelling task once from that icon. It downloads them (about 75 MB) and keeps them on the iPad. Press Test on each to check the sound. The session page warns if they're missing. See [story/README.md](story/README.md).
 - **Screen:** set Auto-Lock to Never, turn on Do Not Disturb, and fix the screen brightness.
 - **Rotation:** lock rotation in landscape.
 - **Guided Access** (Settings → Accessibility): use it to stop gestures and notifications from interrupting a session.
 - **Data:** nothing is sent over the network. Data stay on the iPad until exported.
+  - The only downloads are the app itself and the storytelling task's films and stories.
   - The session page lists every saved run, shows how much storage is used, and can delete exported runs.
 
 ## Shared conventions
@@ -48,6 +49,7 @@ iPad tasks for the ATHENA ADHD study (NCC Lab, York University). Participants do
 
 - **Files:**
   - Each task is one file, `<task>/index.html`.
+  - The storytelling films and stories are in `story/media/`.
   - `session.js` holds the shared participant/session code used by all three pages.
 - **Workflow:** edit, run the checks in [tests/](tests/README.md), then commit and push to `main`. GitHub Pages updates within a few minutes.
 - **On the iPad:** close and reopen the home-screen app to get the new version.

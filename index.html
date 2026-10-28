@@ -119,6 +119,9 @@ function taskOrder(pid){
   const ids = odd ? ['gonogo', 'story'] : ['story', 'gonogo'];
   return {ids, why};
 }
+/* The storytelling task downloads its films and stories the first time it opens, and notes here whether it has them. */
+const MEDIA_MISSING = 'The films and stories are not on this iPad yet. Open the storytelling task once on Wi-Fi to download them.';
+function storyMediaReady(){ try { const m = JSON.parse(Session.lsGet('storyTask:media')); return !!(m && m.ready); } catch(e){ return false; } }
 function statusFor(recs){
   if (!recs.length) return {cls: '', text: 'Not started'};
   const r = recs[0];
@@ -151,7 +154,8 @@ function render(){
       const st = statusFor(recs);
       const done = recs.some(r => r.status === 'finished');
       const row = document.createElement('div'); row.className = 'task';
-      row.innerHTML = `<img src="${TASK_ICONS[id]}" alt=""><div class="grow"><b><span class="num">${i+1}</span>${esc(t.name)}</b><div class="st ${st.cls}">${esc(st.text)}</div></div>`;
+      row.innerHTML = `<img src="${TASK_ICONS[id]}" alt=""><div class="grow"><b><span class="num">${i+1}</span>${esc(t.name)}</b><div class="st ${st.cls}">${esc(st.text)}</div>` +
+        (id === 'story' && !done && !storyMediaReady() ? `<div class="st mid">${MEDIA_MISSING}</div>` : '') + '</div>';
       const b = document.createElement('button'); b.className = 'btn' + (!done && !nextMarked ? ' primary' : '');
       if (!done) nextMarked = true;
       b.textContent = recs.length ? 'Open again' : 'Open';
@@ -166,7 +170,8 @@ function render(){
   const used = Session.storageUsed();
   $('storeMeta').innerHTML = `${all.length} saved task run${all.length === 1 ? '' : 's'}, ${all.filter(r => !r.exported).length} not exported. ` +
     `Using about ${(used/1024).toFixed(0)} KB of the browser's ~5 MB limit` +
-    (used > 3.5e6 ? '. <span class="warn">Storage is getting full: export, then delete old runs.</span>' : '.');
+    (used > 3.5e6 ? '. <span class="warn">Storage is getting full: export, then delete old runs.</span>' : '.') +
+    '<br>' + (storyMediaReady() ? 'Films and stories for the storytelling task: on this iPad.' : `<span class="warn">${MEDIA_MISSING}</span>`);
   $('allData').innerHTML = all.length ? table(all, true) : '<p class="sub" style="margin:8px 0 0">Nothing saved yet.</p>';
   bindRows($('allData'), all);
 }

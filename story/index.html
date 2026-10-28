@@ -13,14 +13,15 @@
 <title>Storytelling Task</title>
 <!--
   Storytelling (retell) task for iPad (Safari), NCC Lab, York University.
-  Two silent films and two spoken stories are played one at a time in a random order
+  Two short films and two spoken stories are played one at a time in a random order
   (seeded by participant ID). After each one the participant has a fixed time (default 30 s)
   to retell it, with on-screen instructions and a countdown.
   Video synchronisation: the two corner patches flash 3 times when playback actually starts
   and 3 times when the retell timer starts (first flash = the event). Every event is logged
   with its time and exported as CSV at the end.
-  Media files are loaded once on the iPad (Files app / Dropbox) and kept in the browser's
-  storage, so nothing is uploaded and no stimuli are stored in the public repository.
+  The films and stories come with the app (story/media/, listed in SLOTS below). The first
+  time the task opens on an iPad it downloads them into the browser's storage (IndexedDB);
+  after that they play from the iPad, so a session doesn't depend on the network.
 -->
 <style>
 :root{
@@ -67,9 +68,10 @@ input[readonly]{color:#bbb;background:#151515}
 .slot{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 0;border-bottom:1px solid var(--line)}
 .slot:last-child{border-bottom:0}
 .slot .kind{flex:0 0 64px;font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
-.slot input.lbl{flex:0 1 170px}
-.slot .file{flex:1 1 200px;font-size:15px;color:#ccc;min-width:160px;word-break:break-all}
+.slot .lbl{flex:0 1 250px;font-size:17px;font-weight:600}
+.slot .file{flex:1 1 200px;font-size:15px;color:#ccc;min-width:160px;word-break:break-word}
 .slot .file.missing{color:var(--warn)}
+.slot .file.ok{color:var(--ok)}
 .order{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
 .order span{background:#1f1f1f;border:1px solid #333;border-radius:8px;padding:5px 10px;font-size:15px}
 table.log{border-collapse:collapse;width:100%;font-size:14px;font-variant-numeric:tabular-nums}
@@ -126,7 +128,7 @@ table.log th{color:var(--muted);font-weight:600}
  <div class="wrap">
   <button class="back" id="backBtn">‹ Session page</button>
   <h1>Storytelling task</h1>
-  <p class="sub">NCC Lab · ATHENA ADHD study. Two silent films and two spoken stories, one at a time in random order. After each one the participant retells it while a timer counts down.</p>
+  <p class="sub">NCC Lab · ATHENA ADHD study. Two short films and two spoken stories, one at a time in random order. After each one the participant retells it while a timer counts down.</p>
 
   <div class="card">
    <h2>Participant</h2>
@@ -140,7 +142,8 @@ table.log th{color:var(--muted);font-weight:600}
   <div class="card">
    <h2>Films and stories on this iPad</h2>
    <div id="slots"></div>
-   <p class="sub" style="margin:10px 0 0">Load each file once (e.g. from Dropbox in the Files app). They stay on this iPad until removed. Videos: MP4 or MOV. Audio: MP3, M4A or WAV. Turn the iPad volume up and test each one.</p>
+   <p class="sub" style="margin:10px 0 0">These come with the app. The first time the task opens on an iPad it downloads them (about 75 MB, so use Wi-Fi) and keeps them, so sessions don't need the internet. Turn the iPad volume up and press Test to check each one.</p>
+   <div class="btns"><button class="btn small" id="redownloadBtn">Download again</button></div>
   </div>
 
   <div class="card">
@@ -224,7 +227,7 @@ table.log th{color:var(--muted);font-weight:600}
 <script src="../session.js"></script>
 <script>
 'use strict';
-const VERSION = '1.1.0';
+const VERSION = '1.2.0';
 /* ---------------- parameters (URL query can override, e.g. ?retellSec=45) ---------------- */
 const DEFAULTS = {
   retellSec: 30,          // time to retell each film/story
@@ -243,15 +246,17 @@ const PARAM_META = [
   ['patchCm','Corner patch size (cm)','num',1,6,0.5], ['pxPerCm','Screen scale (px per cm)','num',20,120,0.5],
   ['seed','Order seed (blank = participant ID)','text']
 ];
+/* The films and stories, stored in story/media/. To change one, add the new file under a NEW file
+   name and update its line here (iPads re-download a file when its name or size changes). */
 const SLOTS = [
-  {id:'film1',  kind:'video', label:'Film 1'},
-  {id:'film2',  kind:'video', label:'Film 2'},
-  {id:'story1', kind:'audio', label:'Story 1'},
-  {id:'story2', kind:'audio', label:'Story 2'}
+  {id:'film1',  kind:'video', label:'The Book Witch',                   file:'media/film1-the-book-witch.mp4'},
+  {id:'film2',  kind:'video', label:'Live a Little',                    file:'media/film2-live-a-little.mp4'},
+  {id:'story1', kind:'audio', label:'The Straw, the Coal and the Bean', file:'media/story1-the-straw-the-coal-and-the-bean.mp3'},
+  {id:'story2', kind:'audio', label:'The Wolf and the Kid',             file:'media/story2-the-wolf-and-the-kid.mp3'}
 ];
 /* participant-facing text (edit freely) */
 const TEXT = {
-  intro: () => `<p>You'll watch <b>2 short silent films</b> and listen to <b>2 short stories</b>, one at a time.</p>
+  intro: () => `<p>You'll watch <b>2 short films</b> and listen to <b>2 short stories</b>, one at a time.</p>
      <p>After each one, tell us what happened. You'll have ${P.retellSec} seconds, and a timer will count down.</p>
      <p class="small">Sit comfortably. There's nothing to press.</p>`,
   listen: () => 'Listen to the story',
@@ -297,7 +302,7 @@ function seededOrder(seedStr){
   return ids;
 }
 const slotById = id => SLOTS.find(s => s.id === id);
-const labelOf = id => (media[id] && media[id].label) || lsGet(LS_PREFIX + 'label:' + id) || slotById(id).label;
+const labelOf = id => slotById(id).label;
 const nowEpoch = t => Math.round(performance.timeOrigin + t);
 
 /* ---------------- media storage (IndexedDB, per device) ---------------- */
@@ -316,61 +321,110 @@ function probeDuration(url, kind){
     const done = () => res(Number.isFinite(el.duration) ? el.duration : NaN);
     el.onloadedmetadata = done; el.onerror = () => res(NaN); setTimeout(() => res(NaN), 8000); el.src = url; });
 }
+const baseName = path => path.split('/').pop();
+function useRecord(s, rec){
+  if (media[s.id]) URL.revokeObjectURL(media[s.id].url);
+  media[s.id] = {name: rec.name, type: rec.type, size: rec.size, duration: rec.duration, url: URL.createObjectURL(new Blob([rec.buf], {type: rec.type || ''}))};
+}
 async function loadStored(){
+  // Use what's already on this iPad, if it's the file the app currently lists for that slot.
   for (const s of SLOTS){
-    try {
-      const rec = await idbGet(s.id);
-      if (rec && rec.buf){
-        const blob = new Blob([rec.buf], {type: rec.type || ''});
-        media[s.id] = {name: rec.name, type: rec.type, size: rec.size, duration: rec.duration, label: rec.label || s.label, url: URL.createObjectURL(blob)};
-      }
-    } catch(e){ console.warn('load', s.id, e); }
+    try { const rec = await idbGet(s.id); if (rec && rec.buf && rec.src === s.file) useRecord(s, rec); }
+    catch(e){ console.warn('load', s.id, e); }
   }
 }
-async function storeFile(slot, file){
-  const buf = await file.arrayBuffer();
-  const url = URL.createObjectURL(new Blob([buf], {type: file.type}));
-  const duration = await probeDuration(url, slot.kind);
-  const label = labelOf(slot.id);
-  await idbPut(slot.id, {buf, name: file.name, type: file.type, size: file.size, duration, label, savedAt: Date.now()});
-  if (media[slot.id]) URL.revokeObjectURL(media[slot.id].url);
-  media[slot.id] = {name: file.name, type: file.type, size: file.size, duration, label, url};
+/* Download state per slot: {state: 'queued'|'downloading'|'error', got, total, err} */
+const dl = {};
+let syncing = false;
+async function download(s){
+  const st = dl[s.id] = {state: 'downloading', got: 0, total: 0};
+  showSlotInfo(s.id);
+  const res = await fetch(s.file, {cache: 'no-store'});
+  if (!res.ok) throw new Error('server said ' + res.status);
+  st.total = Number(res.headers.get('content-length')) || 0;
+  let buf;
+  if (res.body && res.body.getReader){
+    const reader = res.body.getReader(), parts = [];
+    let lastShown = 0;
+    for (;;){
+      const {done, value} = await reader.read(); if (done) break;
+      parts.push(value); st.got += value.length;
+      if (performance.now() - lastShown > 250){ lastShown = performance.now(); showSlotInfo(s.id); }
+    }
+    buf = await new Blob(parts).arrayBuffer();
+  } else buf = await res.arrayBuffer();
+  if (st.total && buf.byteLength !== st.total) throw new Error('download incomplete');
+  const type = (res.headers.get('content-type') || '').split(';')[0] || (s.kind === 'video' ? 'video/mp4' : 'audio/mpeg');
+  const probeUrl = URL.createObjectURL(new Blob([buf], {type}));
+  const duration = await probeDuration(probeUrl, s.kind); URL.revokeObjectURL(probeUrl);   // NaN if this browser can't play it
+  const rec = {buf, name: baseName(s.file), src: s.file, type, size: buf.byteLength, duration, savedAt: Date.now()};
+  await idbPut(s.id, rec);
+  if (!S || S.state === 'ended') useRecord(s, rec);   // never swap a file in the middle of a session (it's used next time)
+  delete dl[s.id];
 }
-async function saveLabel(slotId, label){
-  media[slotId] && (media[slotId].label = label);
-  try { const rec = await idbGet(slotId); if (rec){ rec.label = label; await idbPut(slotId, rec); } } catch(e){}
-  lsSet(LS_PREFIX + 'label:' + slotId, label);
+async function remoteSize(s){
+  // Size of the file on the server, or null if offline / unknown.
+  try {
+    const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), 8000);
+    const res = await fetch(s.file, {method: 'HEAD', cache: 'no-store', signal: ctl.signal}); clearTimeout(timer);
+    const n = Number(res.headers.get('content-length'));
+    return res.ok && n > 0 ? n : null;
+  } catch(e){ return null; }
+}
+async function syncMedia(force){
+  // Download anything missing (or changed on the server), one file at a time.
+  if (syncing) return; syncing = true;
+  try {
+    const todo = [];
+    for (const s of SLOTS){
+      if (force || !media[s.id]) todo.push(s);
+      else { const n = await remoteSize(s); if (n && n !== media[s.id].size) todo.push(s); }
+    }
+    for (const s of todo) dl[s.id] = {state: 'queued', got: 0, total: 0};
+    renderSlots();
+    for (const s of todo){
+      try { await download(s); }
+      catch(e){ dl[s.id] = {state: 'error', err: (e && e.message) || String(e)}; console.warn('download', s.id, e); }
+      renderSlots(); updateSummary();
+    }
+  } finally { syncing = false; }
+  mediaStatusToSession();
+  renderSlots(); updateSummary();
+}
+function mediaStatusToSession(){
+  // Lets the session page show whether this iPad has the films and stories.
+  const ready = SLOTS.every(s => media[s.id]);
+  lsSet(LS_PREFIX + 'media', JSON.stringify({ready, files: SLOTS.map(s => media[s.id] ? media[s.id].name : null), checked: new Date().toISOString(), version: VERSION}));
 }
 
 /* ---------------- setup screen ---------------- */
+function slotInfo(id){
+  const m = media[id], d = dl[id], mb = n => (n/1e6).toFixed(1);
+  if (d && d.state === 'downloading')
+    return {cls: '', text: d.total ? `Downloading… ${Math.floor(100*d.got/d.total)}% of ${mb(d.total)} MB` : `Downloading… ${mb(d.got)} MB`};
+  if (d && d.state === 'error') return {cls: 'missing', text: `Download failed (${d.err}). Check the Wi-Fi, then press Download again.`};
+  if (m && !Number.isFinite(m.duration)) return {cls: 'missing', text: `On this iPad (${mb(m.size)} MB), but this browser can't play it`};
+  if (m) return {cls: 'ok', text: `On this iPad · ${fmtDur(m.duration)} · ${mb(m.size)} MB` + (d && d.state === 'queued' ? ' · update waiting to download' : '')};
+  if (d && d.state === 'queued') return {cls: '', text: 'Waiting to download…'};
+  return {cls: 'missing', text: 'Not on this iPad yet'};
+}
+function showSlotInfo(id){
+  const el = document.querySelector(`#slots .file[data-slot="${id}"]`); if (!el) return;
+  const i = slotInfo(id); el.textContent = i.text; el.className = 'file ' + i.cls;
+}
 function renderSlots(){
   const box = $('slots'); box.innerHTML = '';
   for (const s of SLOTS){
-    const m = media[s.id];
     const row = document.createElement('div'); row.className = 'slot';
     const kind = document.createElement('div'); kind.className = 'kind'; kind.textContent = s.kind === 'video' ? 'Film' : 'Story';
-    const lbl = document.createElement('input'); lbl.className = 'lbl'; lbl.value = labelOf(s.id); lbl.setAttribute('aria-label', 'Label for ' + s.label);
-    lbl.addEventListener('change', () => { saveLabel(s.id, lbl.value.trim() || s.label); updateOrder(); });
-    const info = document.createElement('div'); info.className = 'file' + (m ? '' : ' missing');
-    info.textContent = m ? `${m.name} · ${fmtDur(m.duration)} · ${(m.size/1e6).toFixed(1)} MB` : 'No file loaded';
-    const inp = document.createElement('input'); inp.type = 'file'; inp.className = 'hidden'; inp.dataset.slot = s.id;
-    inp.accept = s.kind === 'video' ? 'video/*,.mp4,.mov,.m4v' : 'audio/*,.mp3,.m4a,.wav,.aac';
-    inp.addEventListener('change', async () => {
-      const f = inp.files && inp.files[0]; if (!f) return;
-      info.textContent = 'Loading…'; info.className = 'file';
-      try { await storeFile(s, f); } catch(e){ info.textContent = 'Could not save this file: ' + (e && e.message || e); info.className = 'file missing'; return; }
-      renderSlots(); updateOrder();
-    });
-    const load = document.createElement('button'); load.className = 'btn small'; load.textContent = m ? 'Replace' : 'Load file';
-    load.onclick = () => inp.click();
-    const play = document.createElement('button'); play.className = 'btn small'; play.textContent = 'Test'; play.disabled = !m;
+    const lbl = document.createElement('div'); lbl.className = 'lbl'; lbl.textContent = s.label;
+    const info = document.createElement('div'); info.className = 'file'; info.dataset.slot = s.id;
+    const play = document.createElement('button'); play.className = 'btn small'; play.textContent = 'Test'; play.disabled = !media[s.id];
     play.onclick = () => openPreview(s.id);
-    row.append(kind, lbl, info, load, play, inp);
-    if (m){ const del = document.createElement('button'); del.className = 'btn small danger'; del.textContent = 'Remove';
-      del.onclick = async () => { if (!confirm('Remove this file from the iPad?')) return; await idbDel(s.id); URL.revokeObjectURL(m.url); delete media[s.id]; renderSlots(); updateOrder(); };
-      row.appendChild(del); }
-    box.appendChild(row);
+    row.append(kind, lbl, info, play);
+    box.appendChild(row); showSlotInfo(s.id);
   }
+  $('redownloadBtn').disabled = syncing;
 }
 function openPreview(id){
   const s = slotById(id), m = media[id]; if (!m) return;
@@ -411,7 +465,7 @@ function updateSummary(){
     `4 trials: 2 films and 2 stories, in a random order set by the participant ID.<br>` +
     `Each trial: the experimenter sees what's next and presses Start → the film or story plays → the participant has <b>${P.retellSec} s</b> to retell it, with a countdown.<br>` +
     `Sync: both corner patches flash ${P.startFlashes}× (${P.syncFlashMs} ms on/off) when playback starts and when the retell timer starts.<br>` +
-    `Estimated time: ≈ ${(est/60).toFixed(1)} min plus instructions${total ? '' : ' (load the files to include their length)'}.`;
+    `Estimated time: ≈ ${(est/60).toFixed(1)} min plus instructions${SLOTS.every(s => media[s.id]) ? '' : ' (once all the files are downloaded)'}.`;
   updateOrder();
 }
 function updateOrder(){
@@ -426,7 +480,7 @@ function updateEnv(){
   $('envSummary').innerHTML =
     `Screen: ${innerWidth} × ${innerHeight} CSS px (${(innerWidth/P.pxPerCm).toFixed(1)} × ${(innerHeight/P.pxPerCm).toFixed(1)} cm), ${innerWidth >= innerHeight ? 'landscape' : 'portrait'}.` +
     (refreshHz ? ` Display refresh ≈ ${refreshHz} Hz.` : '') + `<br>` +
-    `Mode: ${standalone ? '<b>home-screen app</b>' : 'browser tab'}. Files loaded in Safari and in the home-screen app are stored separately, so load them in the mode you'll run in.<br>` +
+    `Mode: ${standalone ? '<b>home-screen app</b>' : 'browser tab'}. Safari and the home-screen app keep separate storage, so each downloads its own copy of the films and stories. Run sessions from the home-screen app.<br>` +
     `Wake lock: ${'wakeLock' in navigator ? 'supported' : '<span style="color:var(--warn)">not supported, set Auto-Lock to Never</span>'}.`;
 }
 function measureRefresh(){ const ts = []; const f = t => { ts.push(t); if (ts.length < 40) requestAnimationFrame(f);
@@ -561,7 +615,13 @@ async function startSession(){
   if (!id){ $('setupErr').textContent = 'Enter a participant ID first.'; return; }
   if (!/^[A-Za-z0-9_\-]+$/.test(id)){ $('setupErr').textContent = 'Use letters, numbers, - or _ only.'; return; }
   const missing = SLOTS.filter(s => !media[s.id]).map(s => labelOf(s.id));
-  if (missing.length){ $('setupErr').textContent = 'Load all four files first (missing: ' + missing.join(', ') + ').'; return; }
+  if (missing.length){
+    $('setupErr').textContent = (syncing ? 'Still downloading the films and stories. Wait for them to finish' : 'Not all the films and stories are on this iPad. Connect to Wi-Fi and press Download again') +
+      ' (missing: ' + missing.join(', ') + ').';
+    return;
+  }
+  const bad = SLOTS.filter(s => !Number.isFinite(media[s.id].duration)).map(s => labelOf(s.id));
+  if (bad.length){ $('setupErr').textContent = 'This browser can\'t play: ' + bad.join(', ') + '. Run the task in Safari on the iPad.'; return; }
   $('setupErr').textContent = '';
   P = currentParams();
   const now = new Date(), seedStr = (P.seed && P.seed.trim()) || id;
@@ -570,7 +630,7 @@ async function startSession(){
   S = { meta: {task:'storytelling', version: VERSION, participant: id, hand: sess ? sess.hand : '', notes: $('notes').value.trim(),
           visit: sess ? sess.visit : '', session: stamp(now), started_local: now.toLocaleString(), started_iso: now.toISOString(), seed: seedStr,
           order: order.map(labelOf), params: {...P},
-          media: Object.fromEntries(SLOTS.map(s => [s.id, {label: labelOf(s.id), file: media[s.id].name, duration_s: r1(media[s.id].duration)}])),
+          media: Object.fromEntries(SLOTS.map(s => [s.id, {label: labelOf(s.id), file: media[s.id].name, bytes: media[s.id].size, duration_s: r1(media[s.id].duration)}])),
           device: {ua: navigator.userAgent, w: innerWidth, h: innerHeight, dpr: devicePixelRatio || 1, standalone: navigator.standalone === true, refreshHz}},
         order, idx: 0, rows: [], cur: null, state: 'idle', status: 'in progress', saveOk: true };
   S.lsKey = LS_PREFIX + 'session:' + S.meta.session + ':' + id;
@@ -747,6 +807,7 @@ $('startBtn').onclick = startSession;
 $('previewBtn').onclick = layoutCheck;
 $('fsBtn').onclick = goFullscreen;
 $('resetDefaults').onclick = () => { URLP = {}; renderAdvanced(); updateSummary(); };
+$('redownloadBtn').onclick = () => syncMedia(true);
 
 /* ---------------- init ---------------- */
 (async function init(){
@@ -754,7 +815,8 @@ $('resetDefaults').onclick = () => { URLP = {}; renderAdvanced(); updateSummary(
   try { if (navigator.storage && navigator.storage.persist) await navigator.storage.persist(); } catch(e){}
   try { await loadStored(); } catch(e){ console.warn(e); }
   renderSlots(); updateSummary(); updateEnv(); renderSaved(); measureRefresh();
-  window.__story = { get S(){ return S; }, get P(){ return P; }, media, csvText, seededOrder, ready: true };   // used by tests/
+  window.__story = { get S(){ return S; }, get P(){ return P; }, media, dl, get syncing(){ return syncing; }, csvText, seededOrder, ready: true };   // used by tests/
+  syncMedia(false);
 })();
 </script>
 </body>

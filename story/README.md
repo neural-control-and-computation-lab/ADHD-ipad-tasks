@@ -1,6 +1,6 @@
 # Storytelling task (iPad)
 
-Part of the ATHENA ADHD study. The participant watches two short silent films and listens to two short spoken stories, one at a time. After each one they retell it while a timer counts down. There are no motor instructions; the cameras record incidental movement while they watch, listen and talk.
+Part of the ATHENA ADHD study. The participant watches two short films and listens to two short spoken stories, one at a time. After each one they retell it while a timer counts down. There are no motor instructions; the cameras record incidental movement while they watch, listen and talk.
 
 **Live version:** https://neural-control-and-computation-lab.github.io/ADHD-ipad-tasks/story/ (normally opened from the [session page](../README.md))
 
@@ -20,19 +20,32 @@ Part of the ATHENA ADHD study. The participant watches two short silent films an
 - **Retell start:** both patches flash 3 times when the countdown starts. Flash 1 is the start of the retell.
 - **Clear corners:** the film is drawn below the strip holding the patches, so the corners stay black except during the flashes.
 
-## Loading the films and stories
+## Films and stories
 
-- Put the four files somewhere the iPad can reach (e.g. Dropbox, which shows up in the Files app).
-- On the setup screen, press Load file for each slot and pick the file. Videos: MP4 or MOV. Audio: MP3, M4A or WAV.
-- The files stay on that iPad until removed, so this only needs doing once per iPad. They are not uploaded anywhere, and none are stored in this repository.
-- Safari and the home-screen app keep separate storage. Load the files after opening the task from the session page's home-screen icon, which is how it will be run.
-- Rename each slot (e.g. "Fox and the Cat") so the experimenter preview and the data file use real names.
-- Press Test on each slot to check it plays and the volume is right.
-- The YouTube films need to be downloaded as MP4 files first. Check that the lab has permission to use them.
+| Slot | Title | File in `media/` | Length |
+|---|---|---|---|
+| Film 1 | The Book Witch | `film1-the-book-witch.mp4` | 1:39 |
+| Film 2 | Live a Little | `film2-live-a-little.mp4` | 1:53 |
+| Story 1 | The Straw, the Coal and the Bean | `story1-the-straw-the-coal-and-the-bean.mp3` | 3:14 |
+| Story 2 | The Wolf and the Kid | `story2-the-wolf-and-the-kid.mp3` | 2:00 |
+
+- **They come with the app.** The first time the task opens on an iPad it downloads all four (about 75 MB, so use Wi-Fi). The setup screen shows the progress.
+- **They stay on the iPad.** After that they play from the iPad, so a session doesn't need the internet.
+  - Each time the task opens with a connection, it checks that the files still match the ones here and downloads any that have changed.
+  - If the iPad ever clears them, they download again the next time the task opens on Wi-Fi.
+- **Check once per iPad:** press Test on each one to check it plays and the volume is right.
+- **Safari and the home-screen app keep separate storage.** Open the task from the session page's home-screen icon, which is how it will be run, so the files are downloaded there.
+- **Public:** the files are in this public repository, so anyone with the link can download them.
+- **The videos were compressed** from the originals (1920×1080, H.264, about 2–3 Mbit/s, sound kept as AAC 128 kbit/s) to keep them under GitHub's file-size limit. The stories are the original MP3s.
+- **Changing a film or story:**
+  - Add the new file to `media/` under a new name.
+  - Update its line in `SLOTS` near the top of `index.html` (title and file name).
+  - Keep each file under 50 MB (GitHub refuses files over 100 MB).
+  - iPads pick up the change the next time the task opens on Wi-Fi.
 
 ## Running a session
 
-- **Start:** open the task from the session page. The participant ID and notes are filled in from there, and the order appears. Press Start session. All four files must be loaded.
+- **Start:** open the task from the session page. The participant ID and notes are filled in from there, and the order appears. Press Start session. All four files must be on the iPad (green on the setup screen).
   - Opened on its own, the task asks for the ID instead.
 - **Introduction:** read the introduction screen to the participant, then press Continue.
 - **Each trial:** press Start when the participant is ready. Nothing else is needed until the next preview.
@@ -41,7 +54,7 @@ Part of the ATHENA ADHD study. The participant watches two short silent films an
 
 ## Data file
 
-- **File name:** `STORY_<ID>_<date-time>.csv`. Lines starting with `#` hold the visit ID (shared with the go/no-go file from the same session), the order, file names and durations, hand, notes, settings and device info. Read the file with `comment='#'` in pandas or `comment.char='#'` in R.
+- **File name:** `STORY_<ID>_<date-time>.csv`. Lines starting with `#` hold the app version, the visit ID (shared with the go/no-go file from the same session), the order, the file names, sizes and durations, hand, notes, settings and device info. Read the file with `comment='#'` in pandas or `comment.char='#'` in R.
 - **Rows:** one row per event, with `trial`, `slot`, `label`, `kind` (video/audio) and `file`.
 - **Events:**
   - `start_pressed`

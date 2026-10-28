@@ -10,7 +10,7 @@ the same visit ID.
 import asyncio, sys, tempfile, pathlib
 from playwright.async_api import async_playwright
 from common import serve_repo, Checks
-from test_story import CLIPS, make_clips
+from test_story import make_clips, clip_router, ALL_HERE
 
 GNG_FAST = 'practiceTrials=0&blocks=1&trialsPerBlock=8&postMs=500&fixMinMs=100&fixMaxMs=300&maxRtMs=400&countdownSec=1&leadMs=100&syncFlashMs=80'
 STORY_FAST = 'retellSec=1&doneMs=200'
@@ -29,15 +29,17 @@ async def main():
             page.on('pageerror', lambda e: errors.append(str(e)))
             page.on('dialog', lambda d: asyncio.ensure_future(d.accept()))
 
-            # the storytelling files must be on the iPad first (shared browser storage)
+            # the storytelling task downloads its files the first time it opens (short test clips here)
+            await ctx.route('**/story/media/*', clip_router(tmp))
+            await page.goto(base + '/')
+            chk('not on this iPad yet' in await page.inner_text('#storeMeta'), 'session page warns that the films and stories are not downloaded yet')
             await page.goto(base + '/story/')
             await page.wait_for_function('window.__story && window.__story.ready')
-            for slot, (name, _) in CLIPS.items():
-                await page.set_input_files(f'input[data-slot={slot}]', str(tmp / name))
-                await page.wait_for_function('s => !!window.__story.media[s]', arg=slot, timeout=15000)
+            await page.wait_for_function(ALL_HERE, timeout=30000)
 
             # start a session
             await page.goto(base + '/')
+            chk('stories for the storytelling task: on this iPad' in await page.inner_text('#storeMeta'), 'session page shows the films and stories are on this iPad')
             await page.fill('#pid', 'P007')
             await page.select_option('#hand', 'left')
             await page.fill('#notes', 'test run')
