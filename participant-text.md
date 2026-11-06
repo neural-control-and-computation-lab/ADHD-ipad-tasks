@@ -154,7 +154,7 @@ All done. Thank you!
 
 You'll watch **2 short films** and listen to **2 short stories**, one at a time.
 
-After each one, tell us what happened. You'll have {retell time}, and a timer will count down.
+After each one, summarize what happened and share one key takeaway. You'll have {retell time}, and a timer will count down.
 
 ## Storytelling: button after the introduction
 > Button on the first screen.
@@ -164,12 +164,12 @@ Continue
 ## Storytelling: before a film
 > Before each film, in large text.
 
-Next, you'll watch a short film.
+Next, you'll watch a short film. 
 
 ## Storytelling: before a story
 > Before each story, in large text.
 
-Next, you'll listen to a story.
+Next, you'll listen to a story.  
 
 ## Storytelling: before a film or story, second line
 > Before each film or story, below the large text.
@@ -191,14 +191,14 @@ Listen to the story
 >
 > Words the app fills in here: {retell time}
 
-Tell us what happened in the film.
+Briefly retell what happened in your own words and share one key thought or takeaway about it.
 
 ## Storytelling: retell after a story
 > Retell screen after a story, above the timer.
 >
 > Words the app fills in here: {retell time}
 
-Tell us what happened in the story.
+Briefly retell what happened in your own words and share one key thought or takeaway about it.
 
 ## Storytelling: retell, second line
 > Retell screen, below the first line, in smaller text.
