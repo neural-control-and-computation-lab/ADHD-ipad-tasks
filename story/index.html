@@ -15,7 +15,7 @@
   Storytelling (retell) task for iPad (Safari), NCC Lab, York University.
   Two short films and two spoken stories are played one at a time in a random order
   (seeded by participant ID). After each one, and a 2 s pause, the participant has a fixed time
-  (default 60 s) to retell it, with on-screen instructions and a countdown.
+  (default 80 s) to retell it, with on-screen instructions and a countdown.
   Video synchronisation: the two corner patches flash 3 times when playback actually starts
   and 3 times when the retell timer starts (first flash = the event). Every event is logged
   with its time and exported as CSV at the end.
@@ -228,7 +228,7 @@ details.more h2{margin-top:18px}
 const VERSION = '1.4.0';
 /* ---------------- parameters (URL query can override, e.g. ?retellSec=45) ---------------- */
 const DEFAULTS = {
-  retellSec: 60,          // time to retell each film/story
+  retellSec: 80,          // time to retell each film/story
   retellDelayMs: 2000,    // blank pause between the end of the film/story and the retell screen
   doneMs: 2000,           // "Time's up" message after each retell
   syncFlashMs: 150,       // each corner flash: on for this long, then off for this long
