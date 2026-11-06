@@ -24,7 +24,7 @@ The app fills these in. Keep them spelled exactly as they are; you can move or d
 
 | Word | Becomes |
 |---|---|
-| `{retell time}` | the time to retell each film or story ("1 minute") |
+| `{retell time}` | the time to retell each film or story ("80 seconds") |
 | `{go letter}`, `{no-go letter}` | the two letters (X and A) |
 | `{parts}` | the number of parts in the go/no-go task (4) |
 | `{part}`, `{next part}` | the part just finished, and the next one |
