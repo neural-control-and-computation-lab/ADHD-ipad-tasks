@@ -8,7 +8,7 @@ built-in text, when the file can't be downloaded.
 
     python tests/test_text.py
 """
-import asyncio, sys
+import asyncio, re, sys
 from playwright.async_api import async_playwright
 from common import REPO, serve_repo, Checks
 
@@ -55,6 +55,12 @@ async def main():
             chk(await page.get_attribute('#status .box', 'class') == 'box ok', 'participant-text.md: every heading is there and usable (preview page says so)')
             n = await page.evaluate("document.querySelectorAll('figure').length")
             chk(n == 16, f'preview page shows all {n} participant screens')
+            retell = int(re.search(r'retellSec:\s*(\d+)', (REPO / 'story' / 'index.html').read_text()).group(1))
+            want = await page.evaluate(f"[ParticipantText.clock({retell}, {retell}), ParticipantText.duration({retell})]")
+            shown = await page.evaluate("[...document.querySelectorAll('#story .clock')].map(e => e.textContent)")
+            intro = await page.text_content('#story figure')
+            chk(shown == [want[0]] * 2 and (want[1] in intro or '{retell time}' not in MD),
+                f'preview uses the task\'s retell time ({retell} s: clock {shown[0]}, intro says "{want[1]}")')
             keys = await page.evaluate("window.ParticipantText.SECTIONS.map(s => s.key)")
             chk(all(f'## {k}\n' in MD for k in keys), f'all {len(keys)} headings are in participant-text.md')
 

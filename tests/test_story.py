@@ -151,7 +151,8 @@ async def main():
     chk(not [t for t in titles if any(t in scr for scr in screens)], 'participant screens show no titles, file names, ID or experimenter notes')
     kinds = [s.split('\n')[0] for s in screens[:4]]
     chk(all(k in ("Next, you'll watch a short film.", "Next, you'll listen to a story.") for k in kinds), f'between trials: only "film" or "story" next ({kinds[0]!r} …)')
-    chk(defaults == [60, 2000], f'defaults: 60 s retell, 2 s pause before it ({defaults})')
+    retell = int(re.search(r'retellSec:\s*(\d+)', (REPO / 'story' / 'index.html').read_text()).group(1))
+    chk(defaults == [retell, 2000], f'defaults: {retell} s retell, 2 s pause before it ({defaults})')
 
     rows = parse_csv(text)
     trials = {}

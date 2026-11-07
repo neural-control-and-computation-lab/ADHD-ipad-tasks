@@ -48,7 +48,7 @@
     {key: 'Go/no-go: end', task: 'gonogo', where: 'Last screen.', text: 'All done. Thank you!'},
 
     {key: 'Storytelling: introduction', task: 'story', where: 'First screen.',
-     text: "You'll watch **2 short films** and listen to **2 short stories**, one at a time.\n\nAfter each one, tell us what happened. You'll have {retell time}, and a timer will count down.",
+     text: "You'll watch **2 short films** and listen to **2 short stories**, one at a time.\n\nAfter each one, summarize what happened and share one key takeaway. You'll have {retell time}, and a timer will count down.",
      fill: ['retell time']},
     {key: 'Storytelling: button after the introduction', task: 'story', where: 'Button on the first screen.', text: 'Continue', button: true},
     {key: 'Storytelling: before a film', task: 'story', where: 'Before each film, in large text.', text: "Next, you'll watch a short film."},
@@ -56,8 +56,8 @@
     {key: 'Storytelling: before a film or story, second line', task: 'story', where: 'Before each film or story, below the large text.', text: "Tap Start when you're ready."},
     {key: 'Storytelling: start button', task: 'story', where: 'Button before each film or story.', text: 'Start', button: true},
     {key: 'Storytelling: while a story plays', task: 'story', where: 'On screen while a story plays (films fill the screen).', text: 'Listen to the story'},
-    {key: 'Storytelling: retell after a film', task: 'story', where: 'Retell screen after a film, above the timer.', text: 'Tell us what happened in the film.', fill: ['retell time']},
-    {key: 'Storytelling: retell after a story', task: 'story', where: 'Retell screen after a story, above the timer.', text: 'Tell us what happened in the story.', fill: ['retell time']},
+    {key: 'Storytelling: retell after a film', task: 'story', where: 'Retell screen after a film, above the timer.', text: 'Briefly retell what happened in your own words and share one key thought or takeaway about it.', fill: ['retell time']},
+    {key: 'Storytelling: retell after a story', task: 'story', where: 'Retell screen after a story, above the timer.', text: 'Briefly retell what happened in your own words and share one key thought or takeaway about it.', fill: ['retell time']},
     {key: 'Storytelling: retell, second line', task: 'story', where: 'Retell screen, below the first line, in smaller text.', text: 'Keep going until the timer runs out.', fill: ['retell time']},
     {key: 'Storytelling: when the time is up', task: 'story', where: 'Shown for 2 s when the timer runs out.', text: "Time's up. Thank you!"},
     {key: 'Storytelling: end', task: 'story', where: 'Last screen.', text: 'All done. Thank you!'},
@@ -152,5 +152,10 @@
     return build(task, md ? parse(md) : null, source);
   }
 
-  window.ParticipantText = {FILE, SECTIONS, parse, build, load, toMarkdown, fillIn};
+  /* How a time is written for participants: 60 -> "1 minute", 120 -> "2 minutes", 80 -> "80 seconds". */
+  const duration = sec => sec % 60 === 0 ? `${sec / 60} minute${sec === 60 ? '' : 's'}` : `${sec} seconds`;
+  /* The countdown clock: "1:20" when the full time is a minute or more, otherwise "45". */
+  const clock = (sec, totalSec) => totalSec >= 60 ? `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}` : String(sec);
+
+  window.ParticipantText = {FILE, SECTIONS, parse, build, load, toMarkdown, fillIn, duration, clock};
 })();

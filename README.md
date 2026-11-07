@@ -3,7 +3,7 @@
 iPad tasks for the ATHENA ADHD study (NCC Lab, York University). Each participant does two tasks in one session while markerless cameras record their movement:
 
 - **Go/no-go reach task:** reach and tap a circle when an X appears; don't move for an A.
-- **Storytelling task:** two short films and two spoken stories in random order, each followed by a 1-minute retell.
+- **Storytelling task:** two short films and two spoken stories in random order, each followed by a timed retell (80 s).
 
 | Link | What it is |
 |---|---|
@@ -21,6 +21,17 @@ Everything participants read during the tasks is in **[participant-text.md](part
 4. After about 2 minutes, check the [preview page](https://neural-control-and-computation-lab.github.io/ADHD-ipad-tasks/preview.html). It also says if anything in the file can't be used.
 
 Each iPad picks up the new wording the next time a task is opened with internet. Every data file records the exact wording that participant saw. The top of [participant-text.md](participant-text.md) explains paragraphs, bold and the words in curly brackets. Editing needs a GitHub account with write access to this repository: ask Jonathan.
+
+## Changing a setting, such as the retell time
+
+Settings are numbers near the top of each task's file: [story/index.html](story/index.html) for the storytelling task, [gonogo/index.html](gonogo/index.html) for go/no-go. They are in the block that starts `const DEFAULTS = {`, one per line, each with a note saying what it is. For example, `retellSec: 80,` is the retell time in seconds.
+
+1. Open the file and click the pencil icon.
+2. Change only the number. Keep the name, the colon and the comma.
+3. Just above the block, raise the last number of the version by one, e.g. `const VERSION = '1.5.0';` becomes `'1.5.1'`. Every data file records the version, so this marks which participants had the new setting.
+4. Commit, then check the [preview page](https://neural-control-and-computation-lab.github.io/ADHD-ipad-tasks/preview.html) after about 2 minutes. The `{retell time}` in the wording and the countdown follow the new number by themselves.
+
+Anything other than changing a number is a code change: ask Jonathan first. If an edit goes wrong, the file's History button can bring back the previous version.
 
 ## Running a session
 

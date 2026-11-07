@@ -13,10 +13,10 @@ The task is one file, `index.html`. The wording participants read is in [partici
   - the screen says only "Next, you'll watch a short film" or "Next, you'll listen to a story", with a Start button
   - the film plays on screen, or the story plays with a "Listen to the story" screen
   - when it ends, the screen goes blank for 2 s
-  - then the retell screen appears ("Tell us what happened in the film/story") with a 1-minute countdown
+  - then the retell screen appears with its instruction (wording in [participant-text.md](../participant-text.md)) and an 80-second countdown, shown as 1:20
   - "Time's up. Thank you!" for 2 s, then the next one
 - **What the participant sees:** every screen during the task is written for the participant. Titles, file names, the participant ID and trial numbers are never shown. The end screen just says "All done. Thank you!", with a small button to go back to the session page.
-- **Session length:** about 9 min of films and stories plus 4 × 1 min of retelling, so about 13–14 min with the instructions.
+- **Session length:** about 9 min of films and stories plus 4 × 80 s of retelling, so about 15–16 min with the instructions.
 
 ## Video synchronisation
 
@@ -75,7 +75,7 @@ The task is one file, `index.html`. The wording participants read is in [partici
 
 ## Settings
 
-- **Change settings** (under "Films, settings and checks"): retell time (default 60 s), the blank pause before the retell (default 2 s), how long "Time's up" shows, patch size and flash timing, screen scale, and the order seed. A yellow line on the setup screen shows when anything differs from the defaults.
+- **Change settings** (under "Films, settings and checks"): retell time (default 80 s), the blank pause before the retell (default 2 s), how long "Time's up" shows, patch size and flash timing, screen scale, and the order seed. A yellow line on the setup screen shows when anything differs from the defaults.
 - **Settings in the link:** e.g. `.../story/?retellSec=45`. The order seed defaults to the participant ID.
 - **Wording:** every line the participant sees is in [participant-text.md](../participant-text.md). Check changes on the [preview page](https://neural-control-and-computation-lab.github.io/ADHD-ipad-tasks/preview.html).
 

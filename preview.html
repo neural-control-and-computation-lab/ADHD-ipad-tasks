@@ -52,16 +52,16 @@ figcaption small{display:block;color:var(--muted);font-size:12px;margin-top:2px}
 .circle{position:absolute;left:408px;top:228px;width:364px;height:364px;border-radius:50%;border:3px solid #5c5c5c}
 .fb{position:absolute;left:0;right:0;top:623px;text-align:center;color:var(--warn);font-weight:700;font-size:41.6px}
 /* ---- storytelling stage screens ---- */
-.listen{position:absolute;left:0;right:0;top:300px;text-align:center;color:#cfcfcf}
+.listen{position:absolute;left:0;right:0;top:300px;text-align:center;color:#cfcfcf;padding:0 64px}
 .listen svg{display:block;margin:0 auto 18px}
 .listen div{font-size:30px;font-weight:600}
-.retell{position:absolute;left:0;right:0;top:210px;text-align:center}
-.retell .t1{font-size:34px;font-weight:700;color:#fff}
+.retell{position:absolute;left:0;right:0;top:210px;text-align:center;padding:0 64px}
+.retell .t1{font-size:32px;font-weight:700;color:#fff}
 .retell .t2{font-size:22px;color:#bbb;margin-top:10px}
 .retell .clock{font-size:150px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1;margin-top:26px;color:#fff}
 .retell .bar{height:12px;background:#222;border-radius:6px;margin:26px auto 0;overflow:hidden;width:708px}
 .retell .bar i{display:block;height:100%;background:#8a8a8a;width:100%}
-.done{position:absolute;left:0;right:0;top:380px;text-align:center;font-size:34px;font-weight:700}
+.done{position:absolute;left:0;right:0;top:380px;text-align:center;font-size:34px;font-weight:700;padding:0 64px}
 </style>
 </head>
 <body>
@@ -80,9 +80,17 @@ figcaption small{display:block;color:var(--muted);font-size:12px;margin-top:2px}
 'use strict';
 const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const L = {'go letter': 'X', 'no-go letter': 'A'};
-const SCORES = {...L, 'average tap time': '412 ms', missed: 1, 'no-go tapped': 2, 'no-go total': 18};
-const RETELL = {'retell time': '1 minute'};
+/* Settings that change what participants read (letters, number of parts, retell time) are read
+   from the tasks themselves, so the preview always matches them. */
+let L, SCORES, RETELL, CFG;
+async function taskSettings(){
+  const get = async path => { try { const r = await fetch(path, {cache: 'no-cache'}); return r.ok ? await r.text() : ''; } catch(e){ return ''; } };
+  const [g, s] = await Promise.all([get('gonogo/index.html'), get('story/index.html')]);
+  const num = (src, k, d) => { const m = src.match(new RegExp('\\b' + k + ':\\s*(\\d+(?:\\.\\d+)?)')); return m ? Number(m[1]) : d; };
+  const str = (src, k, d) => { const m = src.match(new RegExp('\\b' + k + ":\\s*'([^']*)'")); return m ? m[1] : d; };
+  return {go: str(g, 'goLetter', 'X'), nogo: str(g, 'nogoLetter', 'A'), blocks: num(g, 'blocks', 4),
+          trials: num(g, 'trialsPerBlock', 72), pNogo: num(g, 'pNogo', 0.25), breakSec: num(g, 'breakSec', 15), retellSec: num(s, 'retellSec', 60)};
+}
 const SPEAKER = '<svg width="120" height="120" viewBox="0 0 24 24" fill="none" stroke="#cfcfcf" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/></svg>';
 
 const msg = ({title = '', body = '', buttons = [], after = ''}) =>
@@ -94,7 +102,7 @@ function screens(T){
   const g = [
     ['First screen', 'before the practice', msg({title: T.plain('Go/no-go: instructions title', L),
       body: T.paras('Go/no-go: instructions', L) +
-        `<div class="rules"><p class="rule"><span class="kbd">X</span> ${T.line('Go/no-go: next to the go letter', L)}</p><p class="rule"><span class="kbd">A</span> ${T.line('Go/no-go: next to the no-go letter', L)}</p></div>` +
+        `<div class="rules"><p class="rule"><span class="kbd">${esc(CFG.go)}</span> ${T.line('Go/no-go: next to the go letter', L)}</p><p class="rule"><span class="kbd">${esc(CFG.nogo)}</span> ${T.line('Go/no-go: next to the no-go letter', L)}</p></div>` +
         T.paras('Go/no-go: instructions, below the letters', L, 'small'),
       buttons: [[T.plain('Go/no-go: button to start the practice', L), true]]})],
     ['Practice message: too slow', 'after a go letter with no tap', `<div class="circle"></div><div class="fb">${esc(T.plain('Go/no-go: practice message, too slow', L))}</div>`],
@@ -102,10 +110,10 @@ function screens(T){
     ['Practice message: too early', 'tapped before the letter', `<div class="circle"></div><div class="fb">${esc(T.plain('Go/no-go: practice message, too early', L))}</div>`],
     ['After the practice', '', msg({title: T.plain('Go/no-go: after the practice, title', L),
       body: T.paras('Go/no-go: after the practice', L) + T.paras('Go/no-go: scores', SCORES),
-      buttons: [[T.plain('Go/no-go: button to practise again', L), false], [T.plain('Go/no-go: button to start the task', {parts: 4}), true]]})],
-    ['Break between parts', 'after part 1 of 4', msg({title: T.plain('Go/no-go: break, title', L),
-      body: T.paras('Go/no-go: break', {...L, part: 1, parts: 4}) + T.paras('Go/no-go: scores', SCORES) + T.paras('Go/no-go: reminder at each break', L),
-      buttons: [[T.plain('Go/no-go: button to start the next part', {'next part': 2, parts: 4}), true]]})],
+      buttons: [[T.plain('Go/no-go: button to practise again', L), false], [T.plain('Go/no-go: button to start the task', {parts: CFG.blocks}), true]]})],
+    ['Break between parts', `after part 1 of ${CFG.blocks}; the button can be pressed after ${CFG.breakSec} s`, msg({title: T.plain('Go/no-go: break, title', L),
+      body: T.paras('Go/no-go: break', {...L, part: 1, parts: CFG.blocks}) + T.paras('Go/no-go: scores', SCORES) + T.paras('Go/no-go: reminder at each break', L),
+      buttons: [[T.plain('Go/no-go: button to start the next part', {'next part': 2, parts: CFG.blocks}), true]]})],
     ['Last screen', '', msg({body: T.paras('Go/no-go: end', L, 'big'), after: '<div class="after"><span class="btn small">Back to session page</span></div>'})]
   ];
   const s = [
@@ -115,8 +123,8 @@ function screens(T){
     ['Before each story', '', msg({body: T.paras('Storytelling: before a story', null, 'big') + T.paras('Storytelling: before a film or story, second line', null, 'small'),
       buttons: [[T.plain('Storytelling: start button'), true]]})],
     ['While a story plays', 'films fill the screen', `<div class="listen">${SPEAKER}<div>${T.line('Storytelling: while a story plays')}</div></div>`],
-    ['Retell after a film', 'the timer counts down from 1:00', `<div class="retell"><div class="t1">${T.line('Storytelling: retell after a film', RETELL)}</div><div class="t2">${T.line('Storytelling: retell, second line', RETELL)}</div><div class="clock">1:00</div><div class="bar"><i></i></div></div>`],
-    ['Retell after a story', '', `<div class="retell"><div class="t1">${T.line('Storytelling: retell after a story', RETELL)}</div><div class="t2">${T.line('Storytelling: retell, second line', RETELL)}</div><div class="clock">1:00</div><div class="bar"><i></i></div></div>`],
+    ['Retell after a film', `the timer counts down from ${ParticipantText.clock(CFG.retellSec, CFG.retellSec)}`, `<div class="retell"><div class="t1">${T.line('Storytelling: retell after a film', RETELL)}</div><div class="t2">${T.line('Storytelling: retell, second line', RETELL)}</div><div class="clock">${ParticipantText.clock(CFG.retellSec, CFG.retellSec)}</div><div class="bar"><i></i></div></div>`],
+    ['Retell after a story', '', `<div class="retell"><div class="t1">${T.line('Storytelling: retell after a story', RETELL)}</div><div class="t2">${T.line('Storytelling: retell, second line', RETELL)}</div><div class="clock">${ParticipantText.clock(CFG.retellSec, CFG.retellSec)}</div><div class="bar"><i></i></div></div>`],
     ["When the time is up", 'for 2 s', `<div class="done">${T.line('Storytelling: when the time is up')}</div>`],
     ['Last screen', '', msg({body: T.paras('Storytelling: end', null, 'big'), after: '<div class="after"><span class="btn small">Back to session page</span></div>'})],
     ["If a film or story won't play", 'only if something goes wrong', msg({body: T.paras("Storytelling: if a film or story won't play"), buttons: [['Try again', true], ['Skip', false]]})]
@@ -128,7 +136,11 @@ function draw(id, list){
     `<figure><figcaption>${esc(name)}<small>${note ? esc(note) : '&nbsp;'}</small></figcaption><div class="frame"><div class="screen">${html}</div></div></figure>`).join('');
 }
 function fit(){ document.querySelectorAll('.frame').forEach(f => { f.firstChild.style.transform = `scale(${f.clientWidth/1180})`; }); }
-ParticipantText.load('all', '').then(T => {
+Promise.all([ParticipantText.load('all', ''), taskSettings()]).then(([T, cfg]) => {
+  CFG = cfg;
+  L = {'go letter': cfg.go, 'no-go letter': cfg.nogo};
+  SCORES = {...L, 'average tap time': '412 ms', missed: 1, 'no-go tapped': 2, 'no-go total': Math.round(cfg.trials * cfg.pNogo)};
+  RETELL = {'retell time': ParticipantText.duration(cfg.retellSec)};
   const sc = screens(T); draw('gonogo', sc.gonogo); draw('story', sc.story); fit();
   const p = T.problems;
   $('status').innerHTML = p.length

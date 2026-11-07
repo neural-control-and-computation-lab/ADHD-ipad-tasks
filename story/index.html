@@ -107,16 +107,16 @@ details.more h2{margin-top:18px}
 .flash{background:#000;z-index:5}
 .flash.on{background:#fff}
 #vid{background:#000;object-fit:contain}
-#listen{left:0;right:0;text-align:center;color:#cfcfcf}
+#listen{left:0;right:0;text-align:center;color:#cfcfcf;padding:0 64px}
 #listen svg{display:block;margin:0 auto 18px}
 #listen div{font-size:30px;font-weight:600}
-#retell{left:0;right:0;text-align:center}
+#retell{left:0;right:0;text-align:center;padding:0 64px}
 #retell .t1{font-size:32px;font-weight:700;color:#fff}
 #retell .t2{font-size:22px;color:#bbb;margin-top:10px}
 #retell .clock{font-size:150px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1;margin-top:26px;color:#fff}
 #retell .bar{height:12px;background:#222;border-radius:6px;margin:26px auto 0;overflow:hidden}
 #retell .bar i{display:block;height:100%;background:#8a8a8a;width:100%}
-#done{left:0;right:0;text-align:center;font-size:34px;font-weight:700}
+#done{left:0;right:0;text-align:center;font-size:34px;font-weight:700;padding:0 64px}
 
 /* menu + preview overlays */
 .overlay{position:absolute;inset:0;background:rgba(0,0,0,.92);display:flex;align-items:center;justify-content:center;z-index:50;touch-action:manipulation}
@@ -225,7 +225,7 @@ details.more h2{margin-top:18px}
 <script src="../shared/text.js"></script>
 <script>
 'use strict';
-const VERSION = '1.4.0';
+const VERSION = '1.5.0';
 /* ---------------- parameters (URL query can override, e.g. ?retellSec=45) ---------------- */
 const DEFAULTS = {
   retellSec: 80,          // time to retell each film/story
@@ -257,8 +257,8 @@ let T = null, textReady = null;
 const tx = {
   retell: () => ({'retell time': retellTime()})
 };
-const retellTime = () => P.retellSec % 60 === 0 ? `${P.retellSec/60} minute${P.retellSec === 60 ? '' : 's'}` : `${P.retellSec} seconds`;
-const clockText = sec => P.retellSec >= 60 ? `${Math.floor(sec/60)}:${String(sec % 60).padStart(2, '0')}` : String(sec);
+const retellTime = () => ParticipantText.duration(P.retellSec);        // e.g. "80 seconds"
+const clockText = sec => ParticipantText.clock(sec, P.retellSec);      // e.g. "1:20"
 
 /* ---------------- utilities ---------------- */
 const $ = id => document.getElementById(id);
