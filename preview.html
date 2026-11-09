@@ -23,6 +23,7 @@ a{color:var(--accent)}
 .box.ok{background:#0f2416;color:var(--ok)}
 .box.warn{background:#2b2400;color:var(--warn)}
 .box.warn li{margin:4px 0}
+.box.warn ul{margin:6px 0 10px}
 button.reload{font:inherit;font-size:15px;padding:8px 14px;border-radius:10px;border:0;background:#2b2b2b;color:var(--fg);cursor:pointer}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(440px,1fr));gap:22px}
 figure{margin:0}
@@ -67,15 +68,17 @@ figcaption small{display:block;color:var(--muted);font-size:12px;margin-top:2px}
 <body>
 <div class="wrap">
   <h1>Participant text preview</h1>
-  <p class="sub">Every screen participants see in the two tasks, with the wording from <a href="https://github.com/neural-control-and-computation-lab/ADHD-ipad-tasks/blob/main/participant-text.md">participant-text.md</a>. To change the wording, edit that file on GitHub. Changes show up here about 2 minutes after they are committed: reload this page to check. Scores and numbers are examples.</p>
+  <p class="sub">Every screen participants see in the two tasks, with the wording from <a href="https://github.com/neural-control-and-computation-lab/ADHD-ipad-tasks/blob/main/participant-text.md">participant-text.md</a> and the retell times from <a href="https://github.com/neural-control-and-computation-lab/ADHD-ipad-tasks/blob/main/retell-times.md">retell-times.md</a>. To change them, edit those files on GitHub. Changes show up here about 2 minutes after they are committed: reload this page to check. Scores are examples.</p>
   <button class="reload" onclick="location.reload()">Reload</button>
   <div id="status"></div>
   <h2>Go/no-go reach task</h2>
   <div class="grid" id="gonogo"></div>
   <h2>Storytelling task</h2>
+  <p class="sub" id="times"></p>
   <div class="grid" id="story"></div>
 </div>
 <script src="shared/text.js"></script>
+<script src="shared/retell-times.js"></script>
 <script>
 'use strict';
 const $ = id => document.getElementById(id);
@@ -89,7 +92,12 @@ async function taskSettings(){
   const num = (src, k, d) => { const m = src.match(new RegExp('\\b' + k + ':\\s*(\\d+(?:\\.\\d+)?)')); return m ? Number(m[1]) : d; };
   const str = (src, k, d) => { const m = src.match(new RegExp('\\b' + k + ":\\s*'([^']*)'")); return m ? m[1] : d; };
   return {go: str(g, 'goLetter', 'X'), nogo: str(g, 'nogoLetter', 'A'), blocks: num(g, 'blocks', 4),
-          trials: num(g, 'trialsPerBlock', 72), pNogo: num(g, 'pNogo', 0.25), breakSec: num(g, 'breakSec', 15), retellSec: num(s, 'retellSec', 60)};
+          trials: num(g, 'trialsPerBlock', 72), pNogo: num(g, 'pNogo', 0.25), breakSec: num(g, 'breakSec', 15),
+          sameRetellSec: num(s, 'retellSec', 0),        // the storytelling task's "same retell time for all" setting (0 = use retell-times.md)
+          slots: ['film1', 'film2', 'story1', 'story2'].map(id => {                       // from SLOTS in story/index.html
+            const m = s.match(new RegExp("id:'" + id + "'[^}]*?name:'([^']*)'[^}]*?label:'([^']*)'[^}]*?retellSec:\\s*(\\d+)"));
+            return {id, name: m ? m[1] : id, label: m ? m[2] : id, retellSec: m ? Number(m[3]) : 80};
+          })};
 }
 const SPEAKER = '<svg width="120" height="120" viewBox="0 0 24 24" fill="none" stroke="#cfcfcf" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/></svg>';
 
@@ -117,14 +125,14 @@ function screens(T){
     ['Last screen', '', msg({body: T.paras('Go/no-go: end', L, 'big'), after: '<div class="after"><span class="btn small">Back to session page</span></div>'})]
   ];
   const s = [
-    ['First screen', '', msg({body: T.paras('Storytelling: introduction', RETELL), buttons: [[T.plain('Storytelling: button after the introduction'), true]]})],
-    ['Before each film', '', msg({body: T.paras('Storytelling: before a film', null, 'big') + T.paras('Storytelling: before a film or story, second line', null, 'small'),
+    ['First screen', '', msg({body: T.paras('Storytelling: introduction', RETELL.all), buttons: [[T.plain('Storytelling: button after the introduction'), true]]})],
+    ['Before each film', `e.g. before ${RETELL.film1.title}`, msg({body: T.paras('Storytelling: before a film', RETELL.film1.vars, 'big') + T.paras('Storytelling: before a film or story, second line', RETELL.film1.vars, 'small'),
       buttons: [[T.plain('Storytelling: start button'), true]]})],
-    ['Before each story', '', msg({body: T.paras('Storytelling: before a story', null, 'big') + T.paras('Storytelling: before a film or story, second line', null, 'small'),
+    ['Before each story', `e.g. before ${RETELL.story1.title}`, msg({body: T.paras('Storytelling: before a story', RETELL.story1.vars, 'big') + T.paras('Storytelling: before a film or story, second line', RETELL.story1.vars, 'small'),
       buttons: [[T.plain('Storytelling: start button'), true]]})],
     ['While a story plays', 'films fill the screen', `<div class="listen">${SPEAKER}<div>${T.line('Storytelling: while a story plays')}</div></div>`],
-    ['Retell after a film', `the timer counts down from ${ParticipantText.clock(CFG.retellSec, CFG.retellSec)}`, `<div class="retell"><div class="t1">${T.line('Storytelling: retell after a film', RETELL)}</div><div class="t2">${T.line('Storytelling: retell, second line', RETELL)}</div><div class="clock">${ParticipantText.clock(CFG.retellSec, CFG.retellSec)}</div><div class="bar"><i></i></div></div>`],
-    ['Retell after a story', '', `<div class="retell"><div class="t1">${T.line('Storytelling: retell after a story', RETELL)}</div><div class="t2">${T.line('Storytelling: retell, second line', RETELL)}</div><div class="clock">${ParticipantText.clock(CFG.retellSec, CFG.retellSec)}</div><div class="bar"><i></i></div></div>`],
+    ['Retell after a film', `e.g. after ${RETELL.film1.title}: the timer counts down from ${RETELL.film1.clock}`, `<div class="retell"><div class="t1">${T.line('Storytelling: retell after a film', RETELL.film1.vars)}</div><div class="t2">${T.line('Storytelling: retell, second line', RETELL.film1.vars)}</div><div class="clock">${RETELL.film1.clock}</div><div class="bar"><i></i></div></div>`],
+    ['Retell after a story', `e.g. after ${RETELL.story1.title}: the timer counts down from ${RETELL.story1.clock}`, `<div class="retell"><div class="t1">${T.line('Storytelling: retell after a story', RETELL.story1.vars)}</div><div class="t2">${T.line('Storytelling: retell, second line', RETELL.story1.vars)}</div><div class="clock">${RETELL.story1.clock}</div><div class="bar"><i></i></div></div>`],
     ["When the time is up", 'for 2 s', `<div class="done">${T.line('Storytelling: when the time is up')}</div>`],
     ['Last screen', '', msg({body: T.paras('Storytelling: end', null, 'big'), after: '<div class="after"><span class="btn small">Back to session page</span></div>'})],
     ["If a film or story won't play", 'only if something goes wrong', msg({body: T.paras("Storytelling: if a film or story won't play"), buttons: [['Try again', true], ['Skip', false]]})]
@@ -136,17 +144,25 @@ function draw(id, list){
     `<figure><figcaption>${esc(name)}<small>${note ? esc(note) : '&nbsp;'}</small></figcaption><div class="frame"><div class="screen">${html}</div></div></figure>`).join('');
 }
 function fit(){ document.querySelectorAll('.frame').forEach(f => { f.firstChild.style.transform = `scale(${f.clientWidth/1180})`; }); }
-Promise.all([ParticipantText.load('all', ''), taskSettings()]).then(([T, cfg]) => {
+(async () => {
+  const [T, cfg] = await Promise.all([ParticipantText.load('all', ''), taskSettings()]);
+  const RT = await RetellTimes.load('', cfg.slots);
   CFG = cfg;
   L = {'go letter': cfg.go, 'no-go letter': cfg.nogo};
   SCORES = {...L, 'average tap time': '412 ms', missed: 1, 'no-go tapped': 2, 'no-go total': Math.round(cfg.trials * cfg.pNogo)};
-  RETELL = {'retell time': ParticipantText.duration(cfg.retellSec)};
+  const secOf = id => cfg.sameRetellSec > 0 ? cfg.sameRetellSec : RT.times[id];
+  RETELL = {all: {'retell time': ParticipantText.durationRange(cfg.slots.map(s => secOf(s.id)))}};
+  for (const s of cfg.slots) RETELL[s.id] = {vars: {'retell time': ParticipantText.duration(secOf(s.id))}, clock: ParticipantText.clock(secOf(s.id), secOf(s.id)), title: s.label};
+  $('times').innerHTML = 'Retell times' + (cfg.sameRetellSec > 0 ? ` (set to the same for all in the task's settings, so ${RetellTimes.FILE} is not used)` : '') + ': ' +
+    cfg.slots.map(s => `${esc(s.name)}, ${esc(s.label)}: <b>${secOf(s.id)} s</b>`).join(' · ');
   const sc = screens(T); draw('gonogo', sc.gonogo); draw('story', sc.story); fit();
-  const p = T.problems;
-  $('status').innerHTML = p.length
-    ? `<div class="box warn"><b>${p.length === 1 ? 'One thing to fix' : p.length + ' things to fix'} in participant-text.md.</b> The app uses its built-in wording wherever it can't use the file.<ul>${p.map(x => `<li>${esc(x)}</li>`).join('')}</ul></div>`
-    : `<div class="box ok">participant-text.md is fine: the app can use all of it. Loaded ${esc(new Date().toLocaleTimeString())}.</div>`;
-});
+  const groups = [[ParticipantText.FILE, T.problems, 'wording'], [RetellTimes.FILE, RT.problems, 'times']].filter(g => g[1].length);
+  const n = groups.reduce((a, g) => a + g[1].length, 0);
+  $('status').innerHTML = n
+    ? `<div class="box warn"><b>${n === 1 ? 'One thing to fix' : n + ' things to fix'}.</b> The app uses its built-in wording or times wherever it can't use a file.` +
+      groups.map(([f, list]) => `<div style="margin-top:8px"><b>${esc(f)}</b><ul>${list.map(x => `<li>${esc(x)}</li>`).join('')}</ul></div>`).join('') + '</div>'
+    : `<div class="box ok">${ParticipantText.FILE} and ${RetellTimes.FILE} are fine: the app can use all of them. Loaded ${esc(new Date().toLocaleTimeString())}.</div>`;
+})();
 addEventListener('resize', fit);
 </script>
 </body>

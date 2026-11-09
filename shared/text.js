@@ -47,13 +47,13 @@
     {key: 'Go/no-go: button to start the next part', task: 'gonogo', where: 'Button on the break screen (it can be pressed once the 15 s break is over).', text: 'Start part {next part}', fill: ['next part', 'parts'], button: true},
     {key: 'Go/no-go: end', task: 'gonogo', where: 'Last screen.', text: 'All done. Thank you!'},
 
-    {key: 'Storytelling: introduction', task: 'story', where: 'First screen.',
+    {key: 'Storytelling: introduction', task: 'story', where: 'First screen. If the films and stories have different retell times, {retell time} says "between 60 and 90 seconds".',
      text: "You'll watch **2 short films** and listen to **2 short stories**, one at a time.\n\nAfter each one, summarize what happened and share one key takeaway. You'll have {retell time}, and a timer will count down.",
      fill: ['retell time']},
     {key: 'Storytelling: button after the introduction', task: 'story', where: 'Button on the first screen.', text: 'Continue', button: true},
-    {key: 'Storytelling: before a film', task: 'story', where: 'Before each film, in large text.', text: "Next, you'll watch a short film."},
-    {key: 'Storytelling: before a story', task: 'story', where: 'Before each story, in large text.', text: "Next, you'll listen to a story."},
-    {key: 'Storytelling: before a film or story, second line', task: 'story', where: 'Before each film or story, below the large text.', text: "Tap Start when you're ready."},
+    {key: 'Storytelling: before a film', task: 'story', where: 'Before each film, in large text.', text: "Next, you'll watch a short film.", fill: ['retell time']},
+    {key: 'Storytelling: before a story', task: 'story', where: 'Before each story, in large text.', text: "Next, you'll listen to a story.", fill: ['retell time']},
+    {key: 'Storytelling: before a film or story, second line', task: 'story', where: 'Before each film or story, below the large text.', text: "Tap Start when you're ready.", fill: ['retell time']},
     {key: 'Storytelling: start button', task: 'story', where: 'Button before each film or story.', text: 'Start', button: true},
     {key: 'Storytelling: while a story plays', task: 'story', where: 'On screen while a story plays (films fill the screen).', text: 'Listen to the story'},
     {key: 'Storytelling: retell after a film', task: 'story', where: 'Retell screen after a film, above the timer.', text: 'Briefly retell what happened in your own words and share one key thought or takeaway about it.', fill: ['retell time']},
@@ -139,23 +139,36 @@
     };
   }
 
-  /* Load the text for one task ('gonogo', 'story' or 'all'). base = path to the repository root. */
-  async function load(task, base) {
-    let md = null, source = 'built-in';
+  /* Download one of the editable files at the top of the repository and keep a copy on the device.
+     Returns {text, source}: source is 'file', 'saved copy' (download failed, earlier copy used) or 'built-in' (neither). */
+  async function fetchFile(name, base, cacheKey) {
+    const key = cacheKey || 'adhdTasks:file:' + name;
     try {
       const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), 6000);
-      const res = await fetch((base || '') + FILE, {cache: 'no-cache', signal: ctl.signal});
+      const res = await fetch((base || '') + name, {cache: 'no-cache', signal: ctl.signal});
       clearTimeout(timer);
-      if (res.ok) { md = await res.text(); source = 'file'; try { localStorage.setItem(CACHE_KEY, md); } catch (e) {} }
+      if (res.ok) { const text = await res.text(); try { localStorage.setItem(key, text); } catch (e) {} return {text, source: 'file'}; }
     } catch (e) {}
-    if (md === null) { try { md = localStorage.getItem(CACHE_KEY); } catch (e) {} if (md) source = 'saved copy'; }
-    return build(task, md ? parse(md) : null, source);
+    let text = null; try { text = localStorage.getItem(key); } catch (e) {}
+    return text ? {text, source: 'saved copy'} : {text: null, source: 'built-in'};
+  }
+
+  /* Load the text for one task ('gonogo', 'story' or 'all'). base = path to the repository root. */
+  async function load(task, base) {
+    const {text, source} = await fetchFile(FILE, base, CACHE_KEY);
+    return build(task, text ? parse(text) : null, source);
   }
 
   /* How a time is written for participants: 60 -> "1 minute", 120 -> "2 minutes", 80 -> "80 seconds". */
   const duration = sec => sec % 60 === 0 ? `${sec / 60} minute${sec === 60 ? '' : 's'}` : `${sec} seconds`;
   /* The countdown clock: "1:20" when the full time is a minute or more, otherwise "45". */
   const clock = (sec, totalSec) => totalSec >= 60 ? `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}` : String(sec);
+  /* Several times: "80 seconds" if they are all the same, otherwise "between 60 and 90 seconds". */
+  function durationRange(secs) {
+    const lo = Math.min(...secs), hi = Math.max(...secs);
+    if (lo === hi) return duration(lo);
+    return secs.every(s => s % 60 === 0) ? `between ${lo / 60} and ${hi / 60} minutes` : `between ${lo} and ${hi} seconds`;
+  }
 
-  window.ParticipantText = {FILE, SECTIONS, parse, build, load, toMarkdown, fillIn, duration, clock};
+  window.ParticipantText = {FILE, SECTIONS, parse, build, load, toMarkdown, fillIn, duration, durationRange, clock, fetchFile};
 })();

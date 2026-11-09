@@ -13,10 +13,10 @@ The task is one file, `index.html`. The wording participants read is in [partici
   - the screen says only "Next, you'll watch a short film" or "Next, you'll listen to a story", with a Start button
   - the film plays on screen, or the story plays with a "Listen to the story" screen
   - when it ends, the screen goes blank for 2 s
-  - then the retell screen appears with its instruction (wording in [participant-text.md](../participant-text.md)) and an 80-second countdown, shown as 1:20
+  - then the retell screen appears with its instruction (wording in [participant-text.md](../participant-text.md)) and a countdown. Each film and story has its own retell time, set in [retell-times.md](../retell-times.md) (80 s each at the moment, shown as 1:20).
   - "Time's up. Thank you!" for 2 s, then the next one
 - **What the participant sees:** every screen during the task is written for the participant. Titles, file names, the participant ID and trial numbers are never shown. The end screen just says "All done. Thank you!", with a small button to go back to the session page.
-- **Session length:** about 9 min of films and stories plus 4 × 80 s of retelling, so about 15–16 min with the instructions.
+- **Session length:** about 9 min of films and stories plus the four retells (4 × 80 s at the moment), so about 15–16 min with the instructions. The setup screen gives an estimate for the current times.
 
 ## Video synchronisation
 
@@ -59,14 +59,14 @@ The task is one file, `index.html`. The wording participants read is in [partici
 
 ## Data file
 
-- **File name:** `STORY_<ID>_<date-time>.csv`. Lines starting with `#` hold the app version, the visit ID (shared with the go/no-go file from the same session), the order, the file names, sizes and durations, hand, settings and device info. Read the file with `comment='#'` in pandas or `comment.char='#'` in R.
+- **File name:** `STORY_<ID>_<date-time>.csv`. Lines starting with `#` hold the app version, the visit ID (shared with the go/no-go file from the same session), the order, the file names, sizes and durations, the retell time used for each film and story (`retell_times_s`) and where it came from (`retell_source`), hand, settings, the participant text and device info. Read the file with `comment='#'` in pandas or `comment.char='#'` in R.
 - **Rows:** one row per event, with `trial`, `slot`, `label`, `kind` (video/audio) and `file`.
 - **Events:**
   - `start_pressed`
   - `media_playing`
   - `sync_flash` (detail says playback/retell start and flash 1–3)
   - `media_ended`
-  - `retell_start`
+  - `retell_start` (detail gives the planned time, e.g. `planned 80 s`)
   - `retell_end`
   - menu actions (`menu_opened`, `resumed`, `media_stopped_early`, `trial_restarted`, `trial_skipped`)
   - `media_problem` if a film or story fails to play
@@ -75,8 +75,9 @@ The task is one file, `index.html`. The wording participants read is in [partici
 
 ## Settings
 
-- **Change settings** (under "Films, settings and checks"): retell time (default 80 s), the blank pause before the retell (default 2 s), how long "Time's up" shows, patch size and flash timing, screen scale, and the order seed. A yellow line on the setup screen shows when anything differs from the defaults.
-- **Settings in the link:** e.g. `.../story/?retellSec=45`. The order seed defaults to the participant ID.
+- **Retell times:** one per film and story, in [retell-times.md](../retell-times.md). If that file can't be read, the built-in time (`retellSec` in `SLOTS` in `index.html`, 80 s) is used and the setup screen says so.
+- **Change settings** (under "Films, settings and checks"): "Same retell time for all" (default 0, which means use retell-times.md; any other number gives every film and story that time), the blank pause before the retell (default 2 s), how long "Time's up" shows, patch size and flash timing, screen scale, and the order seed. A yellow line on the setup screen shows when anything differs from the defaults.
+- **Settings in the link:** e.g. `.../story/?retellSec=45` gives every film and story 45 s. The order seed defaults to the participant ID.
 - **Wording:** every line the participant sees is in [participant-text.md](../participant-text.md). Check changes on the [preview page](https://neural-control-and-computation-lab.github.io/ADHD-ipad-tasks/preview.html).
 
 ## Things to settle while piloting

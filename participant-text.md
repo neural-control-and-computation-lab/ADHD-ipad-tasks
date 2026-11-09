@@ -24,7 +24,7 @@ The app fills these in. Keep them spelled exactly as they are; you can move or d
 
 | Word | Becomes |
 |---|---|
-| `{retell time}` | the time to retell each film or story ("80 seconds") |
+| `{retell time}` | the time to retell that film or story, set in [retell-times.md](retell-times.md) (e.g. "80 seconds"). On the introduction screen, if the times differ: "between 60 and 90 seconds" |
 | `{go letter}`, `{no-go letter}` | the two letters (X and A) |
 | `{parts}` | the number of parts in the go/no-go task (4) |
 | `{part}`, `{next part}` | the part just finished, and the next one |
@@ -148,7 +148,7 @@ All done. Thank you!
 # Storytelling task
 
 ## Storytelling: introduction
-> First screen.
+> First screen. If the films and stories have different retell times, {retell time} says "between 60 and 90 seconds".
 >
 > Words the app fills in here: {retell time}
 
@@ -163,16 +163,22 @@ Continue
 
 ## Storytelling: before a film
 > Before each film, in large text.
+>
+> Words the app fills in here: {retell time}
 
 Next, you'll watch a short film. 
 
 ## Storytelling: before a story
 > Before each story, in large text.
+>
+> Words the app fills in here: {retell time}
 
 Next, you'll listen to a story.  
 
 ## Storytelling: before a film or story, second line
 > Before each film or story, below the large text.
+>
+> Words the app fills in here: {retell time}
 
 Tap Start when you're ready.
 

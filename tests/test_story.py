@@ -4,10 +4,12 @@
    keeps them after a reload (only a size check goes to the server), and shows their lengths.
 2. Swaps in four short test clips made with ffmpeg (as if the files had changed on the server)
    and checks that the task downloads them again.
-3. Runs a full session with the short clips and a 3 s retell. Trial 2 is paused and resumed
-   during playback and trial 3 skips to the retell early. Checks that the participant's screens
-   show no titles or experimenter information, the order, the pause before each retell, the
-   sync flashes and the retell timing in the event log.
+3. Runs a full session with the short clips and a 3 s retell for all (set in the link). Trial 2
+   is paused and resumed during playback and trial 3 skips to the retell early. Checks that the
+   participant's screens show no titles or experimenter information, the order, the pause
+   before each retell, the sync flashes and the retell timing in the event log.
+4. Runs another session with a different retell time for each film and story, as set in
+   retell-times.md, and checks each retell lasts its own time and is recorded in the data.
 
     python tests/test_story.py
 
@@ -141,18 +143,50 @@ async def main():
             await page.wait_for_function("window.__story.S.state === 'ended'", timeout=30000)
             screens.append(await page.inner_text('#msg'))
             text = await page.evaluate('window.__story.csvText({meta: window.__story.S.meta, rows: window.__story.S.rows})')
-            # defaults (no settings in the link)
+            # defaults (no settings in the link): retell times come from retell-times.md in the repository
             await page.goto(base + '/story/')
+            await page.wait_for_function('window.__story && window.__story.ready && window.__story.RT')
+            defaults = await page.evaluate('[window.__story.P.retellSec, window.__story.P.retellDelayMs, window.__story.RT.times, window.__story.RT.problems]')
+
+            # 4. a different retell time for each film and story
+            own = {'film1': 2, 'film2': 3, 'story1': 4, 'story2': 5}
+            names = {'film1': 'Film 1', 'film2': 'Film 2', 'story1': 'Story 1', 'story2': 'Story 2'}
+            md = '# Retell times\n' + ''.join(f'\n## {names[k]}: any title\nRetell time: {v} seconds\n' for k, v in own.items())
+            async def serve_times(route):
+                await route.fulfill(status=200, body=md, headers={'content-type': 'text/markdown; charset=utf-8'})
+            await page.context.route('**/retell-times.md', serve_times)
+            await page.goto(base + '/story/?doneMs=300')
             await page.wait_for_function('window.__story && window.__story.ready')
-            defaults = await page.evaluate('[window.__story.P.retellSec, window.__story.P.retellDelayMs]')
+            await page.wait_for_function(ALL_HERE, timeout=30000)
+            await page.fill('#pid', 'TEST02')
+            await page.click('#startBtn')
+            await page.wait_for_function("window.__story.S && window.__story.S.state === 'idle'")
+            intro = await page.inner_text('#msg')
+            await page.locator('#msgBtns button', has_text='Continue').click()
+            for n in range(1, 5):
+                await page.wait_for_function("n => window.__story.S.state === 'preview' && window.__story.S.idx === n - 1", arg=n, timeout=30000)
+                await page.locator('#msgBtns button', has_text='Start').click()
+            await page.wait_for_function("window.__story.S.state === 'ended'", timeout=60000)
+            text2 = await page.evaluate('window.__story.csvText({meta: window.__story.S.meta, rows: window.__story.S.rows})')
             await browser.close()
 
     titles = ['Book Witch', 'Live a Little', 'Straw', 'Wolf', 'TEST01', 'Trial', 'Experimenter', '.mp4', '.mp3']
     chk(not [t for t in titles if any(t in scr for scr in screens)], 'participant screens show no titles, file names, ID or experimenter notes')
     kinds = [s.split('\n')[0] for s in screens[:4]]
     chk(all(k in ("Next, you'll watch a short film.", "Next, you'll listen to a story.") for k in kinds), f'between trials: only "film" or "story" next ({kinds[0]!r} …)')
-    retell = int(re.search(r'retellSec:\s*(\d+)', (REPO / 'story' / 'index.html').read_text()).group(1))
-    chk(defaults == [retell, 2000], f'defaults: {retell} s retell, 2 s pause before it ({defaults})')
+    file_times = {k: int(v) for k, v in zip(['film1', 'film2', 'story1', 'story2'],
+                  re.findall(r'(?im)^\s*retell time\s*:\s*(\d+)', (REPO / 'retell-times.md').read_text()))}
+    chk(defaults[:2] == [0, 2000] and defaults[2] == file_times and not defaults[3],
+        f'defaults: each retell time from retell-times.md {defaults[2]}, 2 s pause before the retell')
+    said = next((l for l in intro.splitlines() if 'between' in l), intro.strip()[:80])
+    chk('between 2 and 5 seconds' in intro, f'introduction gives the range when the times differ ("{said}")')
+    rows2 = parse_csv(text2)
+    for slot, sec in own.items():
+        ev = [r for r in rows2 if r['slot'] == slot]
+        st = next(r for r in ev if r['event'] == 'retell_start'); en = next(r for r in ev if r['event'] == 'retell_end')
+        dur = float(en['t_ms']) - float(st['t_ms'])
+        chk(sec*1000 - 10 <= dur <= sec*1000 + 60 and st['detail'] == f'planned {sec} s', f'{slot}: retell lasted {dur:.0f} ms ({sec} s set in retell-times.md)')
+    chk('retell_source=file retell_times_s={"film1":2,"film2":3,"story1":4,"story2":5}' in text2, 'data file header records each retell time and where it came from')
 
     rows = parse_csv(text)
     trials = {}

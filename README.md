@@ -3,13 +3,14 @@
 iPad tasks for the ATHENA ADHD study (NCC Lab, York University). Each participant does two tasks in one session while markerless cameras record their movement:
 
 - **Go/no-go reach task:** reach and tap a circle when an X appears; don't move for an A.
-- **Storytelling task:** two short films and two spoken stories in random order, each followed by a timed retell (80 s).
+- **Storytelling task:** two short films and two spoken stories in random order, each followed by a timed retell.
 
 | Link | What it is |
 |---|---|
 | [Session page](https://neural-control-and-computation-lab.github.io/ADHD-ipad-tasks/) | The app. Open it on the iPad. |
 | [Preview of the participant screens](https://neural-control-and-computation-lab.github.io/ADHD-ipad-tasks/preview.html) | Every screen participants see, with the current wording. |
 | [participant-text.md](participant-text.md) | The wording itself. Edit it here on GitHub. |
+| [retell-times.md](retell-times.md) | How long participants have to retell each film and story. Edit it here on GitHub. |
 
 ## Changing what participants read (no coding)
 
@@ -22,14 +23,18 @@ Everything participants read during the tasks is in **[participant-text.md](part
 
 Each iPad picks up the new wording the next time a task is opened with internet. Every data file records the exact wording that participant saw. The top of [participant-text.md](participant-text.md) explains paragraphs, bold and the words in curly brackets. Editing needs a GitHub account with write access to this repository: ask Jonathan.
 
-## Changing a setting, such as the retell time
+## Changing the retell time of a film or story (no coding)
 
-Settings are numbers near the top of each task's file: [story/index.html](story/index.html) for the storytelling task, [gonogo/index.html](gonogo/index.html) for go/no-go. They are in the block that starts `const DEFAULTS = {`, one per line, each with a note saying what it is. For example, `retellSec: 80,` is the retell time in seconds.
+Each film and story has its own retell time, in **[retell-times.md](retell-times.md)**. Edit it the same way: pencil icon, change the time after `Retell time:`, commit. The [preview page](https://neural-control-and-computation-lab.github.io/ADHD-ipad-tasks/preview.html) lists the times and says if one can't be read. The countdown and `{retell time}` in the wording follow them, and every data file records the time used for each film and story.
+
+## Changing another setting
+
+Other settings are numbers near the top of each task's file: [story/index.html](story/index.html) for the storytelling task, [gonogo/index.html](gonogo/index.html) for go/no-go. They are in the block that starts `const DEFAULTS = {`, one per line, each with a note saying what it is. For example, `retellDelayMs: 2000,` is the blank pause before each retell, in milliseconds.
 
 1. Open the file and click the pencil icon.
 2. Change only the number. Keep the name, the colon and the comma.
-3. Just above the block, raise the last number of the version by one, e.g. `const VERSION = '1.5.0';` becomes `'1.5.1'`. Every data file records the version, so this marks which participants had the new setting.
-4. Commit, then check the [preview page](https://neural-control-and-computation-lab.github.io/ADHD-ipad-tasks/preview.html) after about 2 minutes. The `{retell time}` in the wording and the countdown follow the new number by themselves.
+3. Just above the block, raise the last number of the version by one, e.g. `const VERSION = '1.6.0';` becomes `'1.6.1'`. Every data file records the version, so this marks which participants had the new setting.
+4. Commit, then check the [preview page](https://neural-control-and-computation-lab.github.io/ADHD-ipad-tasks/preview.html) after about 2 minutes.
 
 Anything other than changing a number is a code change: ask Jonathan first. If an edit goes wrong, the file's History button can bring back the previous version.
 
@@ -55,11 +60,12 @@ Anything other than changing a number is a code change: ask Jonathan first. If a
 | File or folder | What it holds |
 |---|---|
 | [participant-text.md](participant-text.md) | Everything participants read. The one file to edit for wording. |
+| [retell-times.md](retell-times.md) | The retell time for each film and story |
 | `index.html` | The session page |
 | `preview.html` | The preview of the participant screens |
 | [gonogo/](gonogo/README.md) | The go/no-go reach task. Its README describes the design and the data file. |
 | [story/](story/README.md) | The storytelling task. Its README describes the design and the data file. `story/media/` holds the films and stories. |
-| `shared/` | Code used by every page: the participant/session details (`session.js`) and the participant text (`text.js`) |
+| `shared/` | Code used by every page: the participant/session details (`session.js`), the participant text (`text.js`) and the retell times (`retell-times.js`) |
 | [tests/](tests/README.md) | Automated checks, run after changing the code |
 | `manifest.json`, `icon.png` | Home-screen app name and icon |
 
