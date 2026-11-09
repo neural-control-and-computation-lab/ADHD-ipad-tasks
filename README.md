@@ -8,35 +8,31 @@ iPad tasks for the ATHENA ADHD study (NCC Lab, York University). Each participan
 | Link | What it is |
 |---|---|
 | [Session page](https://neural-control-and-computation-lab.github.io/ADHD-ipad-tasks/) | The app. Open it on the iPad. |
-| [Preview of the participant screens](https://neural-control-and-computation-lab.github.io/ADHD-ipad-tasks/preview.html) | Every screen participants see, with the current wording. |
-| [participant-text.md](participant-text.md) | The wording itself. Edit it here on GitHub. |
-| [retell-times.md](retell-times.md) | How long participants have to retell each film and story. Edit it here on GitHub. |
+| [Preview page](https://neural-control-and-computation-lab.github.io/ADHD-ipad-tasks/preview.html) | Every screen participants see, with the current wording and retell times. |
+| [participant-text.md](participant-text.md) | What participants read. You can edit it. |
+| [retell-times.md](retell-times.md) | How long participants have to retell each film and story. You can edit it. |
 
-## Changing what participants read (no coding)
+## Changing the wording or the retell times (no coding)
 
-Everything participants read during the tasks is in **[participant-text.md](participant-text.md)**.
+Two files hold everything you're likely to change:
 
-1. Open [participant-text.md](participant-text.md) and click the pencil icon ("Edit this file") at the top right.
-2. Change the text under a heading. Keep the headings (the lines starting with `##`) as they are.
-3. Click **Commit changes…**, then **Commit changes** again.
-4. After about 2 minutes, check the [preview page](https://neural-control-and-computation-lab.github.io/ADHD-ipad-tasks/preview.html). It also says if anything in the file can't be used.
+- **What participants read:** [participant-text.md](participant-text.md)
+- **How long they have to retell each film and story:** [retell-times.md](retell-times.md)
 
-Each iPad picks up the new wording the next time a task is opened with internet. Every data file records the exact wording that participant saw. The top of [participant-text.md](participant-text.md) explains paragraphs, bold and the words in curly brackets. Editing needs a GitHub account with write access to this repository: ask Jonathan.
+To make a change:
 
-## Changing the retell time of a film or story (no coding)
+1. Open the file (click its name above) and click the pencil icon at the top right.
+2. Make your change. The top of each file shows which parts to change.
+3. Click the green **Commit changes…** button, then **Commit changes** in the box that opens. This saves it.
+4. Wait about 2 minutes, then check the [preview page](https://neural-control-and-computation-lab.github.io/ADHD-ipad-tasks/preview.html). It shows every screen with your change, and a yellow box if something in either file needs fixing.
 
-Each film and story has its own retell time, in **[retell-times.md](retell-times.md)**. Edit it the same way: pencil icon, change the time after `Retell time:`, commit. The [preview page](https://neural-control-and-computation-lab.github.io/ADHD-ipad-tasks/preview.html) lists the times and says if one can't be read. The countdown and `{retell time}` in the wording follow them, and every data file records the time used for each film and story.
+The iPads pick up the change the next time a task is opened (with internet).
 
-## Changing another setting
+Good to know:
 
-Other settings are numbers near the top of each task's file: [story/index.html](story/index.html) for the storytelling task, [gonogo/index.html](gonogo/index.html) for go/no-go. They are in the block that starts `const DEFAULTS = {`, one per line, each with a note saying what it is. For example, `retellDelayMs: 2000,` is the blank pause before each retell, in milliseconds.
-
-1. Open the file and click the pencil icon.
-2. Change only the number. Keep the name, the colon and the comma.
-3. Just above the block, raise the last number of the version by one, e.g. `const VERSION = '1.6.0';` becomes `'1.6.1'`. Every data file records the version, so this marks which participants had the new setting.
-4. Commit, then check the [preview page](https://neural-control-and-computation-lab.github.io/ADHD-ipad-tasks/preview.html) after about 2 minutes.
-
-Anything other than changing a number is a code change: ask Jonathan first. If an edit goes wrong, the file's History button can bring back the previous version.
+- Each data file records the exact wording and retell times that participant had.
+- Every saved version is kept. **History** (top right of a file) lists them. To undo a change, ask Jonathan, or open the earlier version from History and copy its text back in.
+- All the other files are code. To change anything else, such as the 2-second pause before each retell or the text size, ask Jonathan.
 
 ## Running a session
 
@@ -79,3 +75,7 @@ Anything other than changing a number is a code change: ask Jonathan first. If a
 - **Each task is one file,** `<task>/index.html`. The wording lives in `participant-text.md`; the built-in copy in `shared/text.js` is only used if that file can't be downloaded.
 - **Workflow:** edit, run the checks in [tests/](tests/README.md), then commit and push to `main`. GitHub Pages updates within a few minutes; close and reopen the home-screen app on the iPad to get the new version.
 - **Versions:** each task's version number is saved in every data file. Bump it when you change anything that affects the data.
+
+### Changing a setting in the code
+
+Other settings are numbers near the top of each task's file, [story/index.html](story/index.html) and [gonogo/index.html](gonogo/index.html), in the block that starts `const DEFAULTS = {`. Each line has a note saying what it is (e.g. `retellDelayMs: 2000,` is the pause before each retell, in milliseconds). Change only the number, raise the last number of `const VERSION` just above it by one (e.g. `'1.6.0'` to `'1.6.1'`) so the data files show the change, commit, and check the preview page.

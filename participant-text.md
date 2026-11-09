@@ -1,34 +1,49 @@
 # Participant text
 
-This file holds everything participants read on the iPad during the two tasks. Change it here: no coding needed.
+Everything participants read on the iPad. You can change it here without any coding.
 
-### How to change the text
+### How to make a change
 
-1. On GitHub, click the pencil icon ("Edit this file") at the top right of this file.
-2. Change the wording under a heading. Keep the headings (the lines starting with `##`) exactly as they are.
-3. Click **Commit changes…**, then **Commit changes** again in the box that opens.
-4. After about 2 minutes, check it on the [preview page](https://neural-control-and-computation-lab.github.io/ADHD-ipad-tasks/preview.html). Each iPad picks up the new text the next time a task is opened with internet.
+1. Click the pencil icon at the top right of this file.
+2. Change the wording (see "What to change" below).
+3. Click the green **Commit changes…** button, then **Commit changes** in the box that opens. This saves it.
+4. Wait about 2 minutes, then open the [preview page](https://neural-control-and-computation-lab.github.io/ADHD-ipad-tasks/preview.html) to see your change on every screen. If it still shows the old wording, wait a minute and press Reload.
 
-### How the text works
+The iPads show the new wording the next time a task is opened (with internet).
 
-- A blank line starts a new paragraph. A single line break stays a line break.
-- Two stars around words make them bold: `**like this**`.
-- The lines starting with `>` (grey on GitHub) say where each piece of text appears. Participants don't see them.
-- To show nothing for a piece of text, delete its text but keep the heading. Buttons always need a label.
-- If something goes wrong (for example a heading was changed by accident), the app uses the original wording for that piece. The preview page and the task's setup screen say what to fix.
-- Every change is kept in the file's history (the "History" button above the file), so an earlier version can always be brought back.
+### What to change
+
+Each piece of text below looks like this:
+
+```
+  ## Storytelling: before a film        ← heading: leave it exactly as it is
+  > Before each film, in large text.    ← grey note for you: participants don't see it
+
+  Next, you'll watch a short film.      ← what participants see: change this
+```
+
+- Change only the text under the grey notes.
+- Leave a blank line between paragraphs.
+- To make words bold, put two stars on each side: `**like this**`.
+- To show nothing, delete the text but keep the heading. Buttons always need some text.
 
 ### Words in curly brackets
 
-The app fills these in. Keep them spelled exactly as they are; you can move or delete them. The grey note under each heading says which ones work there.
+The app fills these in, so keep them spelled exactly as they are. You can move them or delete them. The grey note under a heading lists the ones that work there.
 
 | Word | Becomes |
 |---|---|
-| `{retell time}` | the time to retell that film or story, set in [retell-times.md](retell-times.md) (e.g. "80 seconds"). On the introduction screen, if the times differ: "between 60 and 90 seconds" |
+| `{retell time}` | the time to retell that film or story, set in [retell-times.md](retell-times.md), e.g. "80 seconds". On the first screen, if the times differ: "between 60 and 90 seconds" |
 | `{go letter}`, `{no-go letter}` | the two letters (X and A) |
 | `{parts}` | the number of parts in the go/no-go task (4) |
 | `{part}`, `{next part}` | the part just finished, and the next one |
 | `{average tap time}`, `{missed}`, `{no-go tapped}`, `{no-go total}` | the participant's scores in the part just finished |
+
+### If something goes wrong
+
+- If the app can't use a piece of text (for example because a heading was changed), it shows the original wording for that piece. The preview page says what to fix.
+- Every saved version of this file is kept. **History** (top right of the file) lists them. To undo a change, ask Jonathan, or open the earlier version from History and copy its text back in.
+- Each data file records the exact wording that participant saw.
 
 # Go/no-go reach task
 

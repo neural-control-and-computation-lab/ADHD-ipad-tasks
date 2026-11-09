@@ -27,8 +27,10 @@
   /* slots: [{id, name: 'Film 1', label: 'The Book Witch', retellSec: built-in time}] */
   function parse(md, slots) {
     const found = {}, problems = [], noted = new Set();
-    let cur = null;
+    let cur = null, fence = false;
     for (const raw of String(md).replace(/\r/g, '').split('\n')) {
+      if (/^\s*```/.test(raw)) { fence = !fence; continue; }          // examples in ``` boxes are ignored
+      if (fence) continue;
       const h = raw.match(/^##\s+(.+?)\s*#*\s*$/);
       if (h) {
         cur = slots.find(s => norm(h[1]).startsWith(norm(s.name))) || null;

@@ -69,9 +69,11 @@
   /* participant-text.md -> {normalised heading: {heading, text}} */
   function parse(md) {
     const out = {};
-    let cur = null, lines = [];
+    let cur = null, lines = [], fence = false;
     const flush = () => { if (cur) out[norm(cur)] = {heading: cur, text: lines.join('\n').replace(/<!--[\s\S]*?-->/g, '').trim()}; };
     for (const raw of String(md).replace(/\r/g, '').split('\n')) {
+      if (/^\s*```/.test(raw)) { fence = !fence; continue; }          // examples in ``` boxes are ignored
+      if (fence) continue;
       const h2 = raw.match(/^##\s+(.+?)\s*#*\s*$/);
       if (h2) { flush(); cur = h2[1]; lines = []; continue; }
       if (/^#(\s|$)/.test(raw)) { flush(); cur = null; continue; }     // a top-level heading ends a section
