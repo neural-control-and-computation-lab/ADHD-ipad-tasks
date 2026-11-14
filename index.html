@@ -37,7 +37,8 @@ input:focus,select:focus{outline:2px solid var(--accent);outline-offset:1px}
 .warn{color:var(--warn)}
 .task{display:flex;align-items:center;gap:14px;padding:12px 0;border-bottom:1px solid var(--line)}
 .task:last-child{border-bottom:0}
-.task img{width:52px;height:52px;border-radius:12px;flex:0 0 auto}
+.task img,.task .ico{width:52px;height:52px;border-radius:12px;flex:0 0 auto}
+.task .ico{background:#e9eef5;display:flex;align-items:center;justify-content:center}
 .task .grow{flex:1;min-width:0}
 .task b{display:block;font-size:19px}
 .task .st{font-size:15px;color:var(--muted);margin-top:3px}
@@ -103,6 +104,20 @@ const $ = id => document.getElementById(id);
 const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const TASK_ICONS = {gonogo: 'gonogo/icon.png', story: 'story/icon.png'};
 
+/* Consent and questionnaire (QuestionPro). The participant ID goes along in the link as custom1,
+   so nobody types it there. The consent survey then forwards straight to the questionnaire with
+   the same custom1, and both surveys store it in their "Custom 1" column. */
+const FORMS_LINK = 'https://yorku.questionpro.ca/t/AB3uwzOZB3vITS';
+const formsUrl = s => FORMS_LINK + '?custom1=' + encodeURIComponent(s.participant);
+const formsKey = s => `adhdTasks:formsOpened:${s.participant}:${s.visit}`;
+const FORMS_ICON = '<div class="ico"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#28405e" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4.5h6v2.5H9z"/><path d="M8.5 11.5l1.5 1.5 2.5-2.5M14 12h2M8.5 16.5l1.5 1.5 2.5-2.5M14 17h2"/></svg></div>';
+function openForms(s){
+  Session.lsSet(formsKey(s), new Date().toLocaleTimeString([], {hour: 'numeric', minute: '2-digit'}));
+  const w = window.open(formsUrl(s), '_blank');
+  if (!w) location.assign(formsUrl(s));
+  render();
+}
+
 /* Counterbalanced task order: odd-numbered IDs start with go/no-go, even-numbered with storytelling. */
 function taskOrder(pid){
   const m = String(pid).match(/(\d+)\D*$/);
@@ -133,14 +148,23 @@ function render(){
       (age > 12 ? `<br><span class="warn">Started more than 12 hours ago. End it if this is a new participant.</span>` : '');
     const box = $('taskList'); box.innerHTML = '';
     const mine = all.filter(r => r.participant === s.participant && r.visit === s.visit);
-    let nextMarked = false;
+    const opened = Session.lsGet(formsKey(s));
+    const fRow = document.createElement('div'); fRow.className = 'task'; fRow.id = 'formsRow';
+    fRow.innerHTML = `${FORMS_ICON}<div class="grow"><b><span class="num">1</span>Consent and questionnaire</b>` +
+      `<div class="st ${opened ? 'ok' : ''}">${opened ? 'Opened at ' + esc(opened) : 'Not opened'}</div>` +
+      `<div class="st">Opens in Safari with the ID filled in. Come back to this app when both forms are done.</div></div>`;
+    const fb = document.createElement('button'); fb.className = 'btn' + (opened ? '' : ' primary'); fb.id = 'formsBtn';
+    fb.textContent = opened ? 'Open again' : 'Open';
+    fb.onclick = () => openForms(s);
+    fRow.appendChild(fb); box.appendChild(fRow);
+    let nextMarked = !opened;
     taskOrder(s.participant).forEach((id, i) => {
       const t = Session.TASKS.find(x => x.id === id);
       const recs = mine.filter(r => r.taskId === id);
       const st = statusFor(recs);
       const done = recs.some(r => r.status === 'finished');
       const row = document.createElement('div'); row.className = 'task';
-      row.innerHTML = `<img src="${TASK_ICONS[id]}" alt=""><div class="grow"><b><span class="num">${i+1}</span>${esc(t.name)}</b><div class="st ${st.cls}">${esc(st.text)}</div>` +
+      row.innerHTML = `<img src="${TASK_ICONS[id]}" alt=""><div class="grow"><b><span class="num">${i+2}</span>${esc(t.name)}</b><div class="st ${st.cls}">${esc(st.text)}</div>` +
         (id === 'story' && !done && !storyMediaReady() ? `<div class="st mid">${MEDIA_MISSING}</div>` : '') + '</div>';
       const b = document.createElement('button'); b.className = 'btn' + (!done && !nextMarked ? ' primary' : '');
       if (!done) nextMarked = true;

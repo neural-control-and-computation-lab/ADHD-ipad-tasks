@@ -1,6 +1,7 @@
 """Browser test of the session page (index.html) with both tasks.
 
-Starts a session for participant P007 on the session page, opens each task from there, checks
+Starts a session for participant P007 on the session page, checks that the consent and
+questionnaire button opens the QuestionPro link with the ID (custom1=P007), opens each task from there, checks
 that the participant's details arrive and can't be changed in the task, runs a very short
 version of each task, then checks the statuses on the session page and that "Save data"
 exports both files with the same visit ID.
@@ -45,8 +46,21 @@ async def main():
             await page.click('#startBtn')
             chk(await page.inner_text('#who') == 'P007', 'session page shows the current participant')
             order = await page.eval_on_selector_all('#taskList .task b', 'els => els.map(e => e.textContent)')
-            chk('Go/no-go' in order[0], f'odd ID: go/no-go suggested first ({order})')
+            chk('Consent and questionnaire' in order[0], f'consent and questionnaire come first ({order})')
+            chk('Go/no-go' in order[1], f'odd ID: go/no-go is the first task ({order})')
             visit = await page.evaluate("JSON.parse(localStorage.getItem('adhdTasks:currentSession')).visit")
+
+            # consent and questionnaire: opens the QuestionPro link with the participant ID as custom1
+            await ctx.route('https://yorku.questionpro.ca/**', lambda r: r.fulfill(status=200, content_type='text/html', body='<p>survey</p>'))
+            chk('primary' in await page.get_attribute('#formsBtn', 'class'), 'forms button is highlighted before they are opened')
+            async with ctx.expect_page() as pinfo:
+                await page.click('#formsBtn')
+            popup = await pinfo.value
+            chk(popup.url == 'https://yorku.questionpro.ca/t/AB3uwzOZB3vITS?custom1=P007', f'forms open the consent survey with the participant ID ({popup.url})')
+            await popup.close()
+            chk('Opened at' in await page.text_content('#formsRow'), 'forms row shows when they were opened')
+            gng_cls = await page.locator('#taskList .task', has_text='Go/no-go').locator('button').get_attribute('class')
+            chk('primary' in gng_cls and 'primary' not in await page.get_attribute('#formsBtn', 'class'), 'after the forms, the first task is highlighted')
 
             # go/no-go from the session page
             await page.locator('#taskList .task', has_text='Go/no-go').locator('button').click()
@@ -79,7 +93,7 @@ async def main():
             await page.wait_for_function("document.getElementById('who') && document.getElementById('who').textContent === 'P007'")
 
             # statuses and combined export
-            st = await page.eval_on_selector_all('#taskList .st', 'els => els.map(e => e.textContent)')
+            st = await page.eval_on_selector_all('#taskList .task:not(#formsRow) .st', 'els => els.map(e => e.textContent)')
             chk(all(s.startswith('Done') for s in st), f'both tasks show as done ({st})')
             names = []
             async def grab(d):

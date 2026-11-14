@@ -36,11 +36,14 @@ Good to know:
 
 ## Running a session
 
-1. **Session page:** enter the participant ID and the hand they'll use, then press Start session.
-2. **Tasks:** the page lists the two tasks in order (go/no-go first for odd-numbered IDs, storytelling first for even). Press Open on the first one.
-3. **Back to the session page:** when a task ends, press the small "Back to session page" button under "All done. Thank you!". The task now shows as Done. Open the next one.
-4. **Save the data:** after both tasks, press Save data. The share sheet saves both CSV files (AirDrop, Save to Files or Dropbox).
-5. **End the session:** press End session before the next participant.
+1. **Session page:** enter the participant ID and the hand they'll use, then press Start session. This is the only place the ID is typed.
+2. **Consent and questionnaire:** press Open next to "Consent and questionnaire". The consent form opens in Safari with the participant ID already attached. When the participant finishes it, it goes straight on to the questionnaire. When both are done, switch back to the ADHD tasks app (swipe up from the bottom edge and tap it).
+3. **Tasks:** the page lists the two tasks in order (go/no-go first for odd-numbered IDs, storytelling first for even). Press Open on the first one.
+4. **Back to the session page:** when a task ends, press the small "Back to session page" button under "All done. Thank you!". The task now shows as Done. Open the next one.
+5. **Save the data:** after both tasks, press Save data. The share sheet saves both CSV files (AirDrop, Save to Files or Dropbox).
+6. **End the session:** press End session before the next participant.
+
+In QuestionPro, the participant ID is in the **Custom 1** column of both surveys' data. Email and URPP/KURE ID are only in the consent survey.
 
 ## Setting up an iPad
 
@@ -68,6 +71,7 @@ Good to know:
 ## For whoever changes the code
 
 - **Video sync:** 3 cm white patches in the two top corners of the screen (the edge away from the participant). Both flash 3 times (150 ms on, 150 ms off) at the start of each block or event, and flash 1 is the event. Line the video up to the first frame where they turn white.
+- **Consent and questionnaire link:** `FORMS_LINK` near the top of the script in `index.html` is the consent survey's QuestionPro link. The session page adds `?custom1=<participant ID>`; the consent survey's finish option redirects to the questionnaire with `?custom1=${custom1}`, so both surveys store the ID.
 - **Experimenter menu inside a task:** press and hold the top centre of the screen for 1 s (Esc on a keyboard).
 - **Data files:** `GNG_<ID>_<date-time>.csv` and `STORY_<ID>_<date-time>.csv`. The `#` header lines hold the app version, `visit=` (the same in both files from one session), the hand, all settings and the participant text used.
 - **Order:** trial orders are set by the participant ID, so they can be rebuilt without the data file.
